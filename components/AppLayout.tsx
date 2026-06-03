@@ -162,9 +162,15 @@ export default function AppLayout({ children }: AppLayoutProps) {
         </div>
       </aside>
 
-      {/* Main content area */}
-      <div style={{ flex: 1, marginLeft: '0', display: 'flex', flexDirection: 'column' }}
-        className="lg:ml-60"
+      {/* Main content area — always offset by sidebar width on desktop */}
+      <div style={{
+        flex: 1,
+        marginLeft: '240px',
+        minWidth: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        width: 'calc(100% - 240px)',
+      }}
       >
         {/* Top header */}
         <header style={{
@@ -228,7 +234,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
         </header>
 
         {/* Page content */}
-        <main style={{ flex: 1, padding: '28px 24px', overflowY: 'auto' }}>
+        <main style={{ flex: 1, padding: '28px 24px', overflowY: 'auto', overflowX: 'hidden', minWidth: 0 }}>
           {children}
         </main>
       </div>
