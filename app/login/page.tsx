@@ -17,17 +17,26 @@ export default function LoginPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
 
   async function handleGoogleSuccess(credentialResponse: { credential?: string }) {
-    if (!credentialResponse.credential) return;
+    console.log('[Google] onSuccess fired, credential present:', !!credentialResponse.credential);
+    if (!credentialResponse.credential) {
+      setError('Google sign-in returned no credential. Please try again.');
+      return;
+    }
     setGoogleLoading(true);
     setError('');
     try {
+      console.log('[Google] Calling /auth/google…');
       const res = await api.post('/auth/google', { idToken: credentialResponse.credential });
+      console.log('[Google] Backend responded:', res.status, res.data);
       const { token, user } = res.data;
       setAuth(token, user);
       router.push('/dashboard');
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { error?: string } } };
-      setError(axiosErr?.response?.data?.error || 'Google sign-in failed. Please try again.');
+      console.error('[Google] Error:', err);
+      const axiosErr = err as { response?: { data?: { error?: string }; status?: number } };
+      const msg = axiosErr?.response?.data?.error
+        || `Sign-in failed (${axiosErr?.response?.status ?? 'network error'})`;
+      setError(msg);
     } finally {
       setGoogleLoading(false);
     }
@@ -84,6 +93,20 @@ export default function LoginPage() {
           <p style={{ color: 'var(--muted)', fontSize: '14px', marginBottom: '28px' }}>
             Access your PropAlpha dashboard
           </p>
+
+          {error && (
+            <div style={{
+              backgroundColor: 'rgba(239,68,68,0.1)',
+              border: '1px solid rgba(239,68,68,0.3)',
+              borderRadius: '8px',
+              padding: '10px 14px',
+              color: '#f87171',
+              fontSize: '13px',
+              marginBottom: '16px',
+            }}>
+              {error}
+            </div>
+          )}
 
           {/* Google SSO */}
           <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'center' }}>
