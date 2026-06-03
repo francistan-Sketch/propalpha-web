@@ -3,6 +3,7 @@ export interface AuthUser {
   name: string;
   role: string;
   plan: string;
+  email?: string;
 }
 
 export function getToken(): string | null {
