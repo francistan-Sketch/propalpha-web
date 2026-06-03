@@ -42,6 +42,13 @@ export default function Nav() {
             </a>
           ))}
           <a
+            href="/login"
+            className="text-sm font-semibold px-4 py-2 rounded-full border transition-colors hover:opacity-80"
+            style={{ borderColor: "var(--border)", color: "var(--text)" }}
+          >
+            Sign In
+          </a>
+          <a
             href="#download"
             className="text-sm font-semibold px-4 py-2 rounded-full transition-opacity hover:opacity-80"
             style={{ background: "linear-gradient(135deg,#4f8ef7,#7c5cfc)", color: "#fff" }}
@@ -83,6 +90,14 @@ export default function Nav() {
               {l.label}
             </a>
           ))}
+          <a
+            href="/login"
+            className="text-sm font-semibold px-4 py-2 rounded-full text-center"
+            style={{ border: "1px solid var(--border)", color: "var(--text)" }}
+            onClick={() => setOpen(false)}
+          >
+            Sign In
+          </a>
         </div>
       )}
     </nav>
