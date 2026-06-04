@@ -34,6 +34,13 @@ const MARKET_CARDS = [
     title: 'New Launch at a Glance',
     description: 'Snapshot of all active new launch projects — units, availability, launch PSF.',
   },
+  {
+    href: '/market/ai-valuation',
+    icon: '🤖',
+    title: 'AI Valuation',
+    description: 'Instant indicative market value for any private residential or commercial property — powered by URA data.',
+    highlight: true,
+  },
 ];
 
 export default function MarketPage() {
@@ -60,8 +67,8 @@ export default function MarketPage() {
             >
               <div
                 style={{
-                  backgroundColor: 'var(--surface)',
-                  border: '1px solid var(--border)',
+                  backgroundColor: card.highlight ? 'rgba(79,142,247,0.06)' : 'var(--surface)',
+                  border: `1px solid ${card.highlight ? 'rgba(79,142,247,0.4)' : 'var(--border)'}`,
                   borderRadius: '14px',
                   padding: '24px',
                   height: '100%',
@@ -73,11 +80,22 @@ export default function MarketPage() {
                   (e.currentTarget as HTMLDivElement).style.backgroundColor = 'var(--surface2)';
                 }}
                 onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border)';
-                  (e.currentTarget as HTMLDivElement).style.backgroundColor = 'var(--surface)';
+                  (e.currentTarget as HTMLDivElement).style.borderColor = card.highlight ? 'rgba(79,142,247,0.4)' : 'var(--border)';
+                  (e.currentTarget as HTMLDivElement).style.backgroundColor = card.highlight ? 'rgba(79,142,247,0.06)' : 'var(--surface)';
                 }}
               >
-                <div style={{ fontSize: '32px', marginBottom: '14px' }}>{card.icon}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+                  <span style={{ fontSize: '32px' }}>{card.icon}</span>
+                  {card.highlight && (
+                    <span style={{
+                      padding: '2px 8px', borderRadius: '20px',
+                      backgroundColor: 'rgba(79,142,247,0.15)', color: '#4f8ef7',
+                      fontSize: '11px', fontWeight: 700, letterSpacing: '0.04em',
+                    }}>
+                      NEW
+                    </span>
+                  )}
+                </div>
                 <h2 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text)', marginBottom: '8px' }}>
                   {card.title}
                 </h2>
@@ -85,7 +103,7 @@ export default function MarketPage() {
                   {card.description}
                 </p>
                 <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--accent)', fontSize: '13px', fontWeight: 600 }}>
-                  Explore <span>→</span>
+                  {card.highlight ? 'Try it →' : 'Explore →'}
                 </div>
               </div>
             </Link>
