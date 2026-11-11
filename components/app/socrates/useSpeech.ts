@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
 // Web Speech API dictation for the Mic button. `supported` is false (button hidden) where
 // neither window.SpeechRecognition nor window.webkitSpeechRecognition exists (Firefox, most in-app browsers).
@@ -26,17 +26,21 @@ function getCtor(): RecognitionCtor | null {
   return w.SpeechRecognition || w.webkitSpeechRecognition || null;
 }
 
+// Browser capability never changes during a session: read it through useSyncExternalStore so the
+// server render (false) and the client (true where available) reconcile without an effect.
+const noop = () => () => {};
+const clientHasSpeech = () => !!getCtor();
+const serverHasSpeech = () => false;
+
 export function useSpeech(onTranscript: (text: string, final: boolean) => void) {
-  const [supported, setSupported] = useState(false);
+  const supported = useSyncExternalStore(noop, clientHasSpeech, serverHasSpeech);
   const [listening, setListening] = useState(false);
   const recRef = useRef<RecognitionLike | null>(null);
   const cbRef = useRef(onTranscript);
-  cbRef.current = onTranscript;
 
-  useEffect(() => {
-    setSupported(!!getCtor());
-    return () => { recRef.current?.abort(); };
-  }, []);
+  // Keep the latest callback without re-creating the recogniser.
+  useEffect(() => { cbRef.current = onTranscript; }, [onTranscript]);
+  useEffect(() => () => { recRef.current?.abort(); }, []);
 
   const stop = useCallback(() => {
     recRef.current?.stop();

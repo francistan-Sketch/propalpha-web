@@ -35,14 +35,16 @@ function csvOf(columns: unknown[], rows: unknown[][]): string {
 function looksNumeric(v: unknown): boolean {
   if (typeof v === 'number') return true;
   if (typeof v !== 'string') return false;
-  return /^\s*[$S]?\s*-?[\d,]+(\.\d+)?\s*(%|psf|M|k|sqft)?\s*$/i.test(v) && /\d/.test(v);
+  return /\d/.test(v) && /^\s*[$S]?\s*-?[\d,]+(\.\d+)?\s*(%|psf|M|k|sqft)?\s*$/i.test(v);
 }
 
 export function TableCard({ table }: { table: TableData }) {
   const [copied, setCopied] = useState(false);
   if (!table?.columns?.length || !table?.rows?.length) return null;
   const cols = table.columns;
-  const numericCol = cols.map((_, ci) => table.rows.every((r) => r[ci] === null || r[ci] === undefined || r[ci] === '' || looksNumeric(r[ci])) && table.rows.some((r) => looksNumeric(r[ci])));
+  const numericCol = cols.map((_, ci) =>
+    table.rows.every((r) => r[ci] === null || r[ci] === undefined || r[ci] === '' || looksNumeric(r[ci])) && table.rows.some((r) => looksNumeric(r[ci])),
+  );
   const amberCol = numericCol.findIndex((n, i) => n && i > 0);
 
   async function copy() {
@@ -52,7 +54,7 @@ export function TableCard({ table }: { table: TableData }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      /* clipboard blocked: nothing to do */
+      /* clipboard blocked by the browser: nothing to do */
     }
   }
 
@@ -79,8 +81,9 @@ export function TableCard({ table }: { table: TableData }) {
                   const v = r[ci];
                   const isNum = numericCol[ci];
                   const amber = ci === amberCol;
+                  const index = ci === 0 && isNum;
                   return (
-                    <td key={ci} style={{ padding: '9px 8px', borderBottom: '1px solid var(--pa-border)', textAlign: isNum ? 'right' : 'left', color: ci === 0 && isNum ? 'var(--pa-text-3)' : amber ? 'var(--pa-amber)' : 'var(--pa-text)', fontWeight: amber ? 700 : 400, fontVariantNumeric: isNum ? 'tabular-nums' : undefined, whiteSpace: isNum ? 'nowrap' : undefined }}>
+                    <td key={ci} style={{ padding: '9px 8px', borderBottom: '1px solid var(--pa-border)', textAlign: isNum ? 'right' : 'left', color: index ? 'var(--pa-text-3)' : amber ? 'var(--pa-amber)' : 'var(--pa-text)', fontWeight: amber ? 700 : 400, fontVariantNumeric: isNum ? 'tabular-nums' : undefined, whiteSpace: isNum ? 'nowrap' : undefined }}>
                       {v === null || v === undefined ? '—' : String(v)}
                     </td>
                   );
@@ -117,9 +120,16 @@ export function ChartCard({ chart }: { chart: ChartData }) {
   const bar = chart.type === 'bar';
 
   // Bars start from a true zero baseline; lines auto-scale to the data range with padding.
-  let lo: number, hi: number;
-  if (bar) { lo = Math.min(dataMin, 0); hi = Math.max(dataMax, 0); }
-  else { const pad = (dataMax - dataMin) * 0.1 || Math.abs(dataMax || 1) * 0.1 || 1; lo = dataMin - pad; hi = dataMax + pad; }
+  let lo: number;
+  let hi: number;
+  if (bar) {
+    lo = Math.min(dataMin, 0);
+    hi = Math.max(dataMax, 0);
+  } else {
+    const pad = (dataMax - dataMin) * 0.1 || Math.abs(dataMax || 1) * 0.1 || 1;
+    lo = dataMin - pad;
+    hi = dataMax + pad;
+  }
   if (hi === lo) hi = lo + 1;
 
   const H = 200, PAD_L = 52, PAD_R = 12, PAD_T = 12, PAD_B = 34;
@@ -143,7 +153,10 @@ export function ChartCard({ chart }: { chart: ChartData }) {
       {series.length > 1 && (
         <div style={{ display: 'flex', gap: 12, fontSize: 11.5, color: 'var(--pa-text-2)', flexWrap: 'wrap' }}>
           {series.map((s, i) => (
-            <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 5 }}><i aria-hidden="true" style={{ width: 10, height: 10, borderRadius: bar ? 2 : 5, background: SERIES[i % SERIES.length], display: 'inline-block' }} />{s.name}</span>
+            <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <i aria-hidden="true" style={{ width: 10, height: 10, borderRadius: bar ? 2 : 5, background: SERIES[i % SERIES.length], display: 'inline-block' }} />
+              {s.name}
+            </span>
           ))}
         </div>
       )}
@@ -165,10 +178,10 @@ export function ChartCard({ chart }: { chart: ChartData }) {
                     const v = s.data?.[li];
                     if (!hasValue(v)) return null;
                     const bx = x(li) - (series.length * (barW + 2)) / 2 + si * (barW + 2);
-                    const top = Math.min(y(v), y(0)), bottom = Math.max(y(v), y(0));
-                    const h = Math.max(bottom - top, 2);
+                    const top = Math.min(y(v), y(0));
+                    const bottom = Math.max(y(v), y(0));
                     return (
-                      <rect key={si} x={bx} y={top} width={barW} height={h} rx={3} fill={SERIES[si % SERIES.length]}>
+                      <rect key={si} x={bx} y={top} width={barW} height={Math.max(bottom - top, 2)} rx={3} fill={SERIES[si % SERIES.length]}>
                         <title>{`${l}${series.length > 1 ? ` · ${s.name}` : ''}: ${v.toLocaleString('en-SG')}`}</title>
                       </rect>
                     );
@@ -177,13 +190,17 @@ export function ChartCard({ chart }: { chart: ChartData }) {
               ))
             : series.map((s, si) => {
                 const color = SERIES[si % SERIES.length];
-                const pts = labels.map((_, li) => (hasValue(s.data?.[li]) ? { x: x(li), y: y(s.data[li] as number), v: s.data[li] as number } : null));
+                const pts = labels.map((_, li) => {
+                  const v = s.data?.[li];
+                  return hasValue(v) ? { x: x(li), y: y(v), v } : null;
+                });
+                // Gaps across missing data: never draw a connecting line through a null point.
                 const segs: string[] = [];
                 let cur = '';
-                pts.forEach((p) => {
-                  if (!p) { if (cur) segs.push(cur); cur = ''; return; }
+                for (const p of pts) {
+                  if (!p) { if (cur) segs.push(cur); cur = ''; continue; }
                   cur += `${cur ? ' L' : 'M'}${p.x} ${p.y}`;
-                });
+                }
                 if (cur) segs.push(cur);
                 return (
                   <g key={si}>
@@ -273,7 +290,6 @@ function Stat({ label, value, big }: { label: string; value: ReactNode; big?: bo
 export function YieldCard({ yieldCard }: { yieldCard: YieldCardData }) {
   if (!yieldCard?.project_name) return null;
   const n = yieldCard.rental_sample_count || 0;
-  const low = n < 5;
   const csv = csvOf(['project', 'gross_yield_pct', 'avg_monthly_rent_psf', 'avg_sale_psf', 'rental_sample_count'], [[yieldCard.project_name, yieldCard.yield_pct, yieldCard.avg_monthly_rent_psf, yieldCard.avg_sale_psf, n]]);
   return (
     <div style={cardStyle}>
@@ -286,7 +302,7 @@ export function YieldCard({ yieldCard }: { yieldCard: YieldCardData }) {
         <Stat label="Avg rent psf" value={`$${yieldCard.avg_monthly_rent_psf}`} />
         <Stat label="Avg sale psf" value={`$${fmtInt(yieldCard.avg_sale_psf)}`} />
       </div>
-      <span style={noteStyle}>Based on {n} rental transaction{n === 1 ? '' : 's'} (last 12 months) against sales (last 24 months).{low ? ' Small sample — treat with caution.' : ''}</span>
+      <span style={noteStyle}>Based on {n} rental transaction{n === 1 ? '' : 's'} (last 12 months) against sales (last 24 months).{n < 5 ? ' Small sample — treat with caution.' : ''}</span>
     </div>
   );
 }
