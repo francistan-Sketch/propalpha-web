@@ -67,6 +67,8 @@ function LoginForm() {
   const [password, setPassword] = useState('');
   // An ?error= from the Google redirect is the initial error; the form clears it on the next attempt.
   const [error, setError] = useState(() => { const e = searchParams.get('error'); return e ? decodeURIComponent(e) : ''; });
+  // Only an email/password failure outlines the fields; an Apple or Google problem is shown as text alone.
+  const [fieldError, setFieldError] = useState(false);
   const [loading, setLoading] = useState<'email' | 'apple' | null>(null);
   const theme = useTheme();
   const [appleReady, setAppleReady] = useState<boolean | null>(null);
@@ -95,7 +97,7 @@ function LoginForm() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    setError('');
+    setError(''); setFieldError(false);
     setLoading('email');
     try {
       const res = await api.post('/auth/login', { email, password });
@@ -103,13 +105,14 @@ function LoginForm() {
       setAuth(token, user);
       router.push(next);
     } catch (err: unknown) {
+      setFieldError(true);
       setError(serverError(err) || 'Wrong email or password. Try again, or reset your password.');
       setLoading(null);
     }
   }
 
   async function handleApple() {
-    setError('');
+    setError(''); setFieldError(false);
     if (!APPLE_SERVICE_ID) { setError(APPLE_NOT_READY); return; }
     const ready = appleReady ?? (await loadAppleSdk());
     if (!ready || !window.AppleID) { setError(APPLE_NOT_READY); return; }
@@ -134,7 +137,7 @@ function LoginForm() {
   // Apple's button follows Apple's rules: white on the dark theme, black on the light theme.
   const dark = theme !== 'light';
   const apple = { bg: dark ? '#fff' : '#000', fg: dark ? '#000' : '#fff', border: dark ? '#fff' : '#000' };
-  const fieldBorder = error ? '#F87171' : 'var(--pa-border)';
+  const fieldBorder = fieldError && error ? '#F87171' : 'var(--pa-border)';
   const busy = loading !== null;
   const fieldStyle = { height: 48, padding: '0 14px', borderRadius: 12, border: `1px solid ${fieldBorder}`, background: 'var(--pa-card)', color: 'var(--pa-text)', fontSize: 15.5, width: '100%', minWidth: 0 } as const;
   const ssoStyle = { height: 50, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, borderRadius: 12, fontWeight: 600, fontSize: 15.5, cursor: busy ? 'default' : 'pointer', fontFamily: 'var(--font-body)', textDecoration: 'none', opacity: busy ? 0.8 : 1 } as const;
