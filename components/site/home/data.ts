@@ -100,3 +100,17 @@ export const APP_STORE_URL = '/download';
 export const CONTACT_MAILTO = 'mailto:contact@luminaireproptech.com.sg';
 export const BERLLYNNETTA_URL = 'https://www.berllynnetta.com/pavilion-park';
 export const PROPFOLIO_URL = 'https://www.propfolio.com.sg';
+
+// Join code section: how an agent's code links clients to them and what it lets the agent do.
+export const JOIN_FLOW = [
+  'Share the code: on a flyer QR, in a message, or read out at a viewing.',
+  'The client downloads PropAlpha and enters it at sign-up, or later in their profile.',
+  'They are linked to you. Broadcasts reach them; their reports and enquiries carry your contact buttons.',
+];
+
+export const JOIN_POINTS = [
+  { n: '01', t: 'New listings and new launches', d: 'Broadcast a title, a message and a photo to every linked client from the app. It arrives as a push notification, so a new listing, a launch preview or a price change reaches them the moment you send it.' },
+  { n: '02', t: 'Campaign codes', d: 'Create a separate code for each campaign, with an expiry date and a cap on uses. A campaign code can grant a joining client a free AI valuation or the buyer calculator, which gives them a reason to join.' },
+  { n: '03', t: 'Stay in touch', d: 'Linked clients write to you in the Inbox, with photos and a WhatsApp hand-off when a chat turns into a conversation. You see unread counts and reply from your phone.' },
+  { n: '04', t: 'Enquiries come back to you', d: 'When a linked client runs an AI Valuation, the report shows your WhatsApp and call buttons, not a generic contact. The same code is printed on every flyer you make.' },
+];

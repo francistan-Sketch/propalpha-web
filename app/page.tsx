@@ -12,7 +12,7 @@ import Hero from '@/components/site/home/Hero';
 import { AppStoreBadge, GooglePlayBadge } from '@/components/site/home/StoreBadges';
 import {
   AGENCY_POINTS, ANSWER_POINTS, BERLLYNNETTA_URL, CLIENTS_LEFT, CLIENTS_RIGHT, CONTACT_MAILTO, FLYER_POINTS, MAP_TAGS, MARKET, MARQUEE,
-  PLATFORM_COLUMNS, PROMPTS, PROPFOLIO_LINE, PROPFOLIO_URL, STEPS, TOOLS, TRUST,
+  JOIN_FLOW, JOIN_POINTS, PLATFORM_COLUMNS, PROMPTS, PROPFOLIO_LINE, PROPFOLIO_URL, STEPS, TOOLS, TRUST,
 } from '@/components/site/home/data';
 
 export const metadata: Metadata = {
@@ -236,6 +236,38 @@ export default function Home() {
           <Shot id="iphone69-10" sizes="340px" style={{ width: 'min(340px,80%)', aspectRatio: '1320 / 2868', transform: 'rotate(-3deg)' }} />
           <figcaption style={caption}>District 8 pins with psf labels</figcaption>
         </figure>
+      </section>
+
+      {/* JOIN CODE */}
+      <section id="join" style={section}>
+        <div className="pa-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32, alignItems: 'end', marginBottom: 48 }}>
+          <div><span style={kicker}>Your join code</span><h2 style={h2}>One code. Your clients, linked to you.</h2></div>
+          <p style={{ fontSize: 17, color: 'var(--pa-text-2)', maxWidth: 520 }}>Every agent has a six-character join code. A client who signs up with it, or adds it later in their profile, is linked to you: your broadcasts reach them, their enquiries come back to you.</p>
+        </div>
+        <div className="pa-2col" style={{ display: 'grid', gridTemplateColumns: '.9fr 1.1fr', gap: 24, alignItems: 'stretch' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 24, padding: 'clamp(24px,3vw,36px)', borderRadius: 24, background: 'linear-gradient(160deg,var(--pa-deep-1),var(--pa-deep-2) 60%,var(--pa-primary))', color: '#fff', boxShadow: 'var(--pa-shadow)' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <span style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', fontWeight: 700, color: 'var(--pa-amber)' }}>Join code · sample</span>
+              <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 'clamp(40px,5vw,64px)', letterSpacing: '.18em', lineHeight: 1 }}>X7K4QP</span>
+              <span style={{ fontSize: 13.5, color: '#E9D5FF' }}>Read aloud, typed by hand, or scanned. No letters that look like numbers.</span>
+            </div>
+            <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 10, fontSize: 14.5 }}>
+              {JOIN_FLOW.map((t, i) => (
+                <li key={t} style={{ display: 'grid', gridTemplateColumns: '24px 1fr', gap: 10, alignItems: 'start' }}><span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, color: 'var(--pa-amber)' }}>{i + 1}</span><span style={{ color: '#F3E8FF' }}>{t}</span></li>
+              ))}
+            </ol>
+          </div>
+          <div className="pa-4col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, background: 'var(--pa-border)', border: '1px solid var(--pa-border)', borderRadius: 16, overflow: 'hidden' }}>
+            {JOIN_POINTS.map((j) => (
+              <div key={j.t} style={ruledTile}>
+                <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 12, color: 'var(--pa-amber)' }}>{j.n}</span>
+                <strong style={{ fontSize: 17, letterSpacing: '-0.01em' }}>{j.t}</strong>
+                <span style={{ fontSize: 14.5, color: 'var(--pa-text-2)', lineHeight: 1.5 }}>{j.d}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <p style={{ marginTop: 16, fontSize: 13, color: 'var(--pa-text-3)' }}>Your code is on your profile in the app, printed with a QR on every Flyer Maker letter, and included in the share message the app writes for you.</p>
       </section>
 
       {/* PLATFORM */}
