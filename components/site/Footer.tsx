@@ -15,7 +15,7 @@ export default function Footer() {
       <div className="pa-4col" style={{ maxWidth: 'var(--pa-max)', margin: '0 auto', padding: '56px var(--pa-pad) 40px', display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1fr', gap: 40 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <Wordmark href={null} />
-          <p style={{ color: 'var(--pa-text-2)', fontSize: 14 }}>by Luminaire Proptech</p>
+          <p style={{ color: 'var(--pa-text-2)', fontSize: 14 }}>by Luminaire Proptech, the makers of <a className="pa-link" href="https://www.aurastage.ai" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--pa-text)', fontWeight: 600 }}>AuraStage</a></p>
           <p style={{ color: 'var(--pa-text-3)', fontSize: 13, lineHeight: 1.6, maxWidth: 420 }}>{DISCLAIMER}</p>
         </div>
         <div style={col}>
@@ -34,6 +34,7 @@ export default function Footer() {
         <div style={col}>
           <span style={head}>Company</span>
           <a className="pa-link" href={`mailto:${CONTACT_EMAIL}`}>Contact</a>
+          <a className="pa-link" href="https://www.aurastage.ai" target="_blank" rel="noopener noreferrer">AuraStage</a>
           <Link className="pa-link" href="/privacy">Privacy</Link>
           <Link className="pa-link" href="/terms">Terms</Link>
         </div>
