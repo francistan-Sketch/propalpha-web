@@ -58,15 +58,20 @@ export function isUnlocked(user: AuthUser | null): boolean {
   return role === 'agent' || role === 'admin' || plan !== 'free';
 }
 
-/** "Free plan" or "Agent · Tech Tools active", as the design labels the user menu and plan card. */
+/** "Free plan", "Plus" or "Agent · Tech Tools active", as the design labels the user menu and plan card. */
 export function planLabel(user: AuthUser | null): string {
+  if (!user) return 'Free plan';
+  const role = (user.role || '').toLowerCase();
+  if (role === 'agent' || role === 'admin') return 'Agent · Tech Tools active';
+  const plan = (user.plan || 'free').toLowerCase();
+  if (plan === 'plus') return 'Plus';
   return isUnlocked(user) ? 'Agent · Tech Tools active' : 'Free plan';
 }
 
 export function planDescription(user: AuthUser | null): string {
   return isUnlocked(user)
     ? 'Flyer Maker, Income Valuation, CEA forms, tenancy tools and inbox are active.'
-    : 'Market data, search, tower view and maps. Ask Luminaire Proptech to activate agent tools.';
+    : 'Market data, search, tower view and maps. Upgrade to Plus for AI Socrates, Flyer Maker and the agent tools.';
 }
 
 /** Up to two initials from a display name; "U" when there is none. */

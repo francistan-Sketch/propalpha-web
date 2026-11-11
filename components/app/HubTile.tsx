@@ -9,8 +9,10 @@ export type HubTileProps = {
   /** Route to open. Omit for a tile that has nowhere to go yet. */
   href?: string;
   coming?: boolean;
-  /** Locked treatment from the design: 75% opacity, "Locked" tag, activation line, not clickable. */
+  /** Locked treatment from the design: 75% opacity, "Locked" tag, "Included in Plus" line with the upgrade link, not clickable. */
   locked?: boolean;
+  /** Where the locked tile's "Upgrade to Plus" link goes. */
+  upgradeHref?: string;
   minHeight?: number;
 };
 
@@ -19,7 +21,7 @@ const LockIcon = () => (
 );
 
 // Market and Tech Tools hub tile (22px padding, radius 16, amber kicker, 18px title).
-export default function HubTile({ kicker, title, description, href, coming, locked, minHeight = 150 }: HubTileProps) {
+export default function HubTile({ kicker, title, description, href, coming, locked, upgradeHref = '/pricing', minHeight = 150 }: HubTileProps) {
   const base: CSSProperties = {
     position: 'relative', padding: 22, borderRadius: 16, border: '1px solid var(--pa-border)', background: 'var(--pa-card)', color: 'var(--pa-text)',
     textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 8, minHeight, opacity: locked ? 0.75 : 1, cursor: locked || !href ? 'default' : 'pointer',
@@ -38,7 +40,12 @@ export default function HubTile({ kicker, title, description, href, coming, lock
         {coming && locked && <Tag kind="coming" />}
       </strong>
       <span style={{ fontSize: 13, color: 'var(--pa-text-2)', lineHeight: 1.5 }}>{description}</span>
-      {locked && <span style={{ marginTop: 'auto', fontSize: 12, color: 'var(--pa-text-3)' }}>Ask Luminaire Proptech to activate</span>}
+      {locked && (
+        <span style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 12, color: 'var(--pa-text-3)' }}>
+          Included in Plus
+          <Link href={upgradeHref} className="pa-btn" style={{ height: 30, display: 'inline-flex', alignItems: 'center', padding: '0 12px', borderRadius: 8, background: 'var(--pa-primary)', color: '#fff', fontWeight: 700, fontSize: 12.5, whiteSpace: 'nowrap' }}>Upgrade to Plus</Link>
+        </span>
+      )}
     </>
   );
   if (locked || !href) return <div aria-disabled={locked || undefined} style={base}>{body}</div>;

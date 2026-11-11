@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import api from '@/lib/api';
-import { Spinner } from '@/components/app/States';
+import { parseQuotaHeader, type QuotaExceeded } from '@/lib/billing';
+import { ErrorBox, Spinner } from '@/components/app/States';
 import { socratesHref } from '@/components/app/AskSocrates';
 import ProjectField from '@/components/app/search/ProjectField';
 import TowerGrid, { TowerLegend, fmtInt, type TowerBlock, type TowerUnit } from '@/components/app/search/TowerGrid';
@@ -71,6 +72,9 @@ function SearchScreen() {
   const [error, setError] = useState('');
   const [searched, setSearched] = useState(false);
   const [searchedProject, setSearchedProject] = useState('');
+  // Free-plan search quota: the X-Search-Quota header on each result, and the 402 body when it is used up.
+  const [quota, setQuota] = useState<{ used: number; limit: number } | null>(null);
+  const [quotaExceeded, setQuotaExceeded] = useState<QuotaExceeded | null>(null);
 
   const [blocks, setBlocks] = useState<TowerBlock[] | null>(null);
   const [towerLoading, setTowerLoading] = useState(false);
@@ -86,6 +90,7 @@ function SearchScreen() {
   const runSearch = useCallback(async (f: { project: string; district: string; category: string; datePreset: string; txnType: string }, pageNo = 1) => {
     setLoading(true);
     setError('');
+    setQuotaExceeded(null);
     setPage(1);
     setSearched(true);
     setSearchedProject(f.project.trim());
@@ -102,13 +107,25 @@ function SearchScreen() {
       const res = await api.get('/search', { params: p, timeout: 30_000 });
       const data = res.data;
       const list: Transaction[] = Array.isArray(data) ? data : data.transactions || data.results || data.data || [];
+      const q = parseQuotaHeader(res.headers?.['x-search-quota']);
+      if (q) setQuota(q);
       setRows(list);
       setTotal(typeof data?.total === 'number' ? data.total : list.length);
       setServerPage(typeof data?.page === 'number' ? data.page : 1);
       setServerPages(typeof data?.pages === 'number' && data.pages > 0 ? data.pages : 1);
     } catch (err) {
       if (onAuth(err)) return;
-      setError(describeError(err, 'Search failed. Please try again.').message);
+      const described = describeError(err, 'Search failed. Please try again.');
+      const body = (err as { response?: { data?: Partial<QuotaExceeded> } })?.response?.data;
+      if (described.status === 402 && body?.quotaExceeded) {
+        // Free plan over quota: the server's own message, with the upgrade path instead of a generic failure.
+        const used = Number(body.used) || 0;
+        const limit = Number(body.limit) || 0;
+        setQuotaExceeded({ error: body.error || described.message, quotaExceeded: true, used, limit, upgradeUrl: body.upgradeUrl });
+        if (limit > 0) setQuota({ used, limit });
+      } else {
+        setError(described.message);
+      }
       setRows([]);
       setTotal(0);
     } finally {
@@ -156,7 +173,7 @@ function SearchScreen() {
   }
   function clearFilters() {
     setProject(''); setDistrict(''); setCategory(''); setDatePreset(''); setPsfBand(''); setTxnType('sale');
-    setRows([]); setSearched(false); setBlocks(null); setError('');
+    setRows([]); setSearched(false); setBlocks(null); setError(''); setQuotaExceeded(null);
   }
 
   const filtered = psfBand ? rows.filter((t) => inBand(psfOf(t), psfBand)) : rows;
@@ -207,13 +224,19 @@ function SearchScreen() {
         </Field>
         <PrimaryBtn disabled={loading}>{loading ? <Spinner size={14} light /> : null}Search</PrimaryBtn>
       </form>
+      {quota && (
+        <span style={{ marginTop: -10, fontSize: 12, color: 'var(--pa-text-3)', display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+          <span><strong style={{ color: quota.used >= quota.limit ? 'var(--pa-amber)' : 'var(--pa-text-2)', fontVariantNumeric: 'tabular-nums' }}>{quota.used} of {quota.limit}</strong> searches this month on the Free plan.</span>
+          <Link href="/pricing" className="pa-link" style={{ color: 'var(--pa-text-2)', fontWeight: 600 }}>Unlimited with Plus →</Link>
+        </span>
+      )}
 
       <div className="pa-2col" style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.1fr) minmax(0,.9fr)', gap: 20, alignItems: 'start' }}>
         {/* Results */}
         <section style={cardSection} aria-label="Transactions">
           <div style={cardHead}>
             <strong style={{ fontSize: 14 }}>Transactions{searchedProject ? ` · ${searchedProject}` : district ? ` · D${String(parseInt(district, 10)).padStart(2, '0')}` : ''}</strong>
-            {searched && !loading && !error && (
+            {searched && !loading && !error && !quotaExceeded && (
               <span style={{ fontSize: 11.5, color: 'var(--pa-text-3)' }}>
                 {total.toLocaleString('en-SG')} result{total === 1 ? '' : 's'}{psfBand ? ` · ${filtered.length} in psf band` : ''}{totalPages > 1 ? ` · page ${curPage} of ${totalPages}` : ''}
               </span>
@@ -222,15 +245,26 @@ function SearchScreen() {
 
           {loading && <TableSkeleton rows={6} />}
 
+          {!loading && quotaExceeded && (
+            <div style={{ padding: 16 }}>
+              <ErrorBox title="Monthly search limit reached.">
+                <span style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'flex-start' }}>
+                  <span>{quotaExceeded.error}{quotaExceeded.limit > 0 ? ` (${quotaExceeded.used} of ${quotaExceeded.limit} used.)` : ''} Plus has unlimited searches, with a 14-day free trial.</span>
+                  <Link href="/pricing" className="pa-btn" style={{ height: 36, display: 'inline-flex', alignItems: 'center', padding: '0 16px', borderRadius: 9, background: 'var(--pa-primary)', color: '#fff', fontWeight: 700, fontSize: 13.5 }}>Upgrade to Plus</Link>
+                </span>
+              </ErrorBox>
+            </div>
+          )}
+
           {!loading && error && (
             <TableEmpty title="Search did not complete." action={<GhostBtn onClick={() => runSearch({ project, district, category, datePreset, txnType })}>Try again</GhostBtn>}>{error}</TableEmpty>
           )}
 
-          {!loading && !error && !searched && (
+          {!loading && !error && !quotaExceeded && !searched && (
             <TableEmpty title="Search Singapore property transactions.">Pick a district or a project, then Search. Latest 30 are shown unless you set a date range.</TableEmpty>
           )}
 
-          {!loading && !error && searched && filtered.length === 0 && (
+          {!loading && !error && !quotaExceeded && searched && filtered.length === 0 && (
             <TableEmpty title="No transactions match these filters." action={<GhostBtn onClick={clearFilters}>Clear filters</GhostBtn>}>
               Widen the date range or clear the psf band. Private, HDB and landed are searched separately.
             </TableEmpty>

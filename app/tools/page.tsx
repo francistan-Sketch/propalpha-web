@@ -1,12 +1,14 @@
 'use client';
 
+import Link from 'next/link';
 import AppLayout from '@/components/AppLayout';
 import HubTile from '@/components/app/HubTile';
 import { isUnlocked } from '@/lib/auth';
 import { useAuthUser } from '@/components/app/hooks';
 
-// Tech Tools hub from PropAlpha-App.dc.html. Agent tools carry the locked treatment for free-plan users;
-// calculators are free for everyone and live in the app for now.
+// Tech Tools hub from PropAlpha-App.dc.html. Agent tools are part of Plus and carry the locked treatment
+// ("Included in Plus", Upgrade to Plus → /pricing) for free-plan users; calculators are free for everyone
+// and live in the app for now.
 type Tool = { kicker: string; title: string; description: string; href?: string; coming?: boolean; agentOnly: boolean };
 
 const TOOLS: Tool[] = [
@@ -28,8 +30,8 @@ export default function ToolsPage() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
         {!unlocked && (
           <div role="status" style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', padding: '14px 16px', borderRadius: 14, border: '1px solid color-mix(in srgb, var(--pa-amber) 50%, transparent)', background: 'color-mix(in srgb, var(--pa-amber) 10%, transparent)', fontSize: 14 }}>
-            <span style={{ flex: 1, minWidth: 220 }}>Tech Tools are agent tools. Ask Luminaire Proptech to activate them for your account.</span>
-            <a className="pa-btn" href="mailto:contact@luminaireproptech.com.sg?subject=PropAlpha%20Tech%20Tools%20activation" style={{ height: 36, display: 'inline-flex', alignItems: 'center', padding: '0 14px', borderRadius: 9, background: 'var(--pa-amber)', color: '#1E1B4B', fontWeight: 800, fontSize: 13, whiteSpace: 'nowrap' }}>Request activation</a>
+            <span style={{ flex: 1, minWidth: 220 }}>Tech Tools are included in Plus. Start a 14-day free trial to use them; calculators stay free.</span>
+            <Link href="/pricing" className="pa-btn" style={{ height: 36, display: 'inline-flex', alignItems: 'center', padding: '0 14px', borderRadius: 9, background: 'var(--pa-amber)', color: '#1E1B4B', fontWeight: 800, fontSize: 13, whiteSpace: 'nowrap' }}>See plans</Link>
           </div>
         )}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(250px,1fr))', gap: 14 }}>

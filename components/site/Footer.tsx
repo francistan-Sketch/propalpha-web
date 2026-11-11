@@ -23,6 +23,7 @@ export default function Footer() {
           <Link className="pa-link" href="/#features">Features</Link>
           <Link className="pa-link" href="/flyer-maker">Flyer Maker</Link>
           <Link className="pa-link" href="/#market">Market Data</Link>
+          <Link className="pa-link" href="/pricing">Pricing</Link>
           <Link className="pa-link" href="/download">Download</Link>
         </div>
         <div style={col}>

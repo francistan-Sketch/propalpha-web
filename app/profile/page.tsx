@@ -1,13 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import AppLayout from '@/components/AppLayout';
 import { ErrorBox } from '@/components/app/States';
+import PlanCard from '@/components/app/PlanCard';
 import api from '@/lib/api';
-import { logout, initials, isUnlocked, planLabel, planDescription } from '@/lib/auth';
+import { logout, initials, isUnlocked, planLabel } from '@/lib/auth';
 import { useAuthUser } from '@/components/app/hooks';
 
 // Profile from PropAlpha-App.dc.html: portrait, fields, join code card with QR, plan card, Sign out, Delete account.
+// The plan card (components/app/PlanCard.tsx) is live from /billing/status and handles ?billing=success.
 
 interface AgentProfile {
   name?: string | null;
@@ -149,11 +151,16 @@ export default function ProfilePage() {
               <span style={{ fontSize: 11, color: 'var(--pa-text-3)' }}>QR generated from {JOIN_BASE.replace('https://', '')}{joinCode} by a public QR service.</span>
             </div>
           )}
-          <div style={{ ...cardStyle, padding: 20, display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--pa-text-3)', fontWeight: 800 }}>Plan</span>
-            <strong style={{ fontSize: 16 }}>{planLabel(user)}</strong>
-            <span style={{ fontSize: 12.5, color: 'var(--pa-text-2)' }}>{planDescription(user)}</span>
-          </div>
+          <Suspense
+            fallback={(
+              <div style={{ ...cardStyle, padding: 20, display: 'flex', flexDirection: 'column', gap: 6 }} aria-busy="true">
+                <span style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--pa-text-3)', fontWeight: 800 }}>Plan</span>
+                <strong style={{ fontSize: 16 }}>{planLabel(user)}</strong>
+              </div>
+            )}
+          >
+            <PlanCard />
+          </Suspense>
         </aside>
       </div>
     </AppLayout>

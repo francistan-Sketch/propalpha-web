@@ -24,7 +24,7 @@ const PROMPTS = [
   'What are industrial rents like in Ubi for a 2,000 sqft unit?',
 ];
 
-const GATED_TEXT = 'AI Socrates is available to agent accounts. Ask Luminaire Proptech to activate.';
+const GATED_TEXT = 'AI Socrates is included in Plus. Upgrade to ask Socrates about any project, district or unit; the 14-day trial is free.';
 
 type ChatError = { message: string; gated: boolean; question: string | null };
 
@@ -232,6 +232,9 @@ function SocratesScreen() {
               <div role="alert" style={{ maxWidth: 520, padding: '16px 18px', borderRadius: 14, border: '1px solid rgba(248,113,113,.5)', background: 'rgba(248,113,113,.1)', display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <strong style={{ fontSize: 14.5, color: '#F87171' }}>{error.gated ? 'AI Socrates is not active on this account.' : 'Socrates could not finish that answer.'}</strong>
                 <span style={{ fontSize: 13.5, color: 'var(--pa-text-2)' }}>{error.message}</span>
+                {error.gated && (
+                  <Link href="/pricing" className="pa-btn" style={{ alignSelf: 'flex-start', height: 34, display: 'inline-flex', alignItems: 'center', padding: '0 14px', borderRadius: 8, background: 'var(--pa-primary)', color: '#fff', fontWeight: 700, fontSize: 13 }}>Upgrade to Plus</Link>
+                )}
                 {error.question && (
                   <button type="button" className="pa-btn" onClick={() => send(error.question!, { reuseBubble: true })} style={{ alignSelf: 'flex-start', height: 34, padding: '0 14px', borderRadius: 8, border: '1px solid var(--pa-border)', background: 'var(--pa-card)', color: 'var(--pa-text)', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
                     Try again

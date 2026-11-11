@@ -1,18 +1,19 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Wordmark from './Wordmark';
 import ThemeToggle from './ThemeToggle';
-import { isLoggedIn } from '@/lib/auth';
+import { useAuthUser } from '@/components/app/hooks';
 
-export type NavCurrent = 'home' | 'features' | 'flyer' | 'market' | 'platform' | 'download' | 'none';
+export type NavCurrent = 'home' | 'features' | 'flyer' | 'market' | 'platform' | 'pricing' | 'download' | 'none';
 
 const LINKS: { key: NavCurrent; href: string; label: string }[] = [
   { key: 'features', href: '/#features', label: 'Features' },
   { key: 'flyer', href: '/flyer-maker', label: 'Flyer Maker' },
   { key: 'market', href: '/#market', label: 'Market Data' },
   { key: 'platform', href: '/platform', label: 'Platform' },
+  { key: 'pricing', href: '/pricing', label: 'Pricing' },
   { key: 'download', href: '/download', label: 'Download' },
 ];
 
@@ -20,8 +21,7 @@ const LINKS: { key: NavCurrent; href: string; label: string }[] = [
 // When a user is signed in, "Sign In" becomes "Open PropAlpha".
 export default function Nav({ current = 'none' }: { current?: NavCurrent }) {
   const [open, setOpen] = useState(false);
-  const [signedIn, setSignedIn] = useState(false);
-  useEffect(() => { setSignedIn(isLoggedIn()); }, []);
+  const signedIn = !!useAuthUser(); // undefined on the server and during hydration, so "Sign In" renders first
   const color = (k: NavCurrent) => (k === current ? 'var(--pa-text)' : 'var(--pa-text-2)');
   const signIn = signedIn ? { href: '/dashboard', label: 'Open PropAlpha' } : { href: '/login', label: 'Sign In' };
 
