@@ -116,3 +116,4 @@ html[data-theme="light"] .pa-grain { opacity: .25; }
   .pa-app-main { padding: 16px !important; } .pa-app-top-ask { display: none !important; }
 }
 @media (max-width: 560px) { .pa-4col { grid-template-columns: 1fr 1fr !important; } }
+@media (max-width: 480px) { .pa-hide-xs { display: none !important; } }

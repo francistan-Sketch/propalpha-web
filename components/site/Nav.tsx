@@ -37,7 +37,7 @@ export default function Nav({ current = 'none' }: { current?: NavCurrent }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto', whiteSpace: 'nowrap', flex: 'none' }}>
           <ThemeToggle />
           <Link className="pa-desk pa-link" href={signIn.href} style={{ display: 'inline-flex', alignItems: 'center', height: 38, padding: '0 14px', fontSize: 14.5, fontWeight: 600, color: 'var(--pa-text-2)' }}>{signIn.label}</Link>
-          <Link className="pa-btn" href="/download" style={{ display: 'inline-flex', alignItems: 'center', height: 38, padding: '0 16px', borderRadius: 10, background: 'var(--pa-primary)', color: '#fff', fontWeight: 700, fontSize: 14.5 }}>Get the App</Link>
+          <Link className="pa-btn pa-hide-xs" href="/download" style={{ display: 'inline-flex', alignItems: 'center', height: 38, padding: '0 16px', borderRadius: 10, background: 'var(--pa-primary)', color: '#fff', fontWeight: 700, fontSize: 14.5 }}>Get the App</Link>
           <button type="button" className="pa-mob" onClick={() => setOpen((o) => !o)} aria-label="Menu" aria-expanded={open} style={{ width: 38, height: 38, borderRadius: 10, border: '1px solid var(--pa-border)', background: 'var(--pa-card)', color: 'var(--pa-text)', placeItems: 'center', cursor: 'pointer', alignItems: 'center', justifyContent: 'center' }}>
             {open ? (
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
