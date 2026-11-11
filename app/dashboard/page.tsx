@@ -7,7 +7,7 @@ import AskSocrates, { socratesHref } from '@/components/app/AskSocrates';
 import { EmptyState } from '@/components/app/States';
 import { Tag } from '@/components/site/ui';
 import api from '@/lib/api';
-import { getUser } from '@/lib/auth';
+import { useAuthUser } from '@/components/app/hooks';
 
 // Dashboard from PropAlpha-App.dc.html: greeting, 60px ask field, prompt chips, recent conversations, quick links.
 
@@ -49,12 +49,11 @@ function when(iso: string): string {
 const rowStyle = { display: 'flex', justifyContent: 'space-between', gap: 12, padding: '14px 16px', borderBottom: '1px solid var(--pa-border)', background: 'var(--pa-card)', color: 'var(--pa-text)', fontSize: 14, textAlign: 'left' } as const;
 
 export default function DashboardPage() {
-  const [firstName, setFirstName] = useState('');
+  const user = useAuthUser();
+  const firstName = (user?.name || '').trim().split(/\s+/)[0] || '';
   const [recents, setRecents] = useState<Conversation[] | null>(null);
 
   useEffect(() => {
-    const u = getUser();
-    setFirstName((u?.name || '').trim().split(/\s+/)[0] || '');
     let alive = true;
     api.get('/ai/conversations')
       .then((res) => { if (alive) setRecents(Array.isArray(res.data?.conversations) ? res.data.conversations.slice(0, 4) : []); })

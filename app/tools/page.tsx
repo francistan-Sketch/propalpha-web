@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import AppLayout from '@/components/AppLayout';
 import HubTile from '@/components/app/HubTile';
-import { getUser, isUnlocked } from '@/lib/auth';
+import { isUnlocked } from '@/lib/auth';
+import { useAuthUser } from '@/components/app/hooks';
 
 // Tech Tools hub from PropAlpha-App.dc.html. Agent tools carry the locked treatment for free-plan users;
 // calculators are free for everyone and live in the app for now.
@@ -20,8 +20,8 @@ const TOOLS: Tool[] = [
 ];
 
 export default function ToolsPage() {
-  const [unlocked, setUnlocked] = useState(true);
-  useEffect(() => { setUnlocked(isUnlocked(getUser())); }, []);
+  const user = useAuthUser();
+  const unlocked = user === undefined ? true : isUnlocked(user); // no locked flash before hydration
 
   return (
     <AppLayout title="Tech Tools">

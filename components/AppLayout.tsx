@@ -3,12 +3,13 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { getUser, logout, isLoggedIn, initials, planLabel, type AuthUser } from '@/lib/auth';
+import { logout, initials, planLabel } from '@/lib/auth';
 import Wordmark from '@/components/site/Wordmark';
 import ThemeToggle from '@/components/site/ThemeToggle';
 import { Tag } from '@/components/site/ui';
 import AlphaMark from '@/components/app/AlphaMark';
 import AskSocrates from '@/components/app/AskSocrates';
+import { useAuthUser, useSidebarCollapsed } from '@/components/app/hooks';
 
 // Signed-in shell from PropAlpha-App.dc.html: sticky 240px sidebar (68px icon rail when collapsed),
 // 64px top bar with title, data label, global Ask Socrates pill, theme toggle and user menu; a 64px
@@ -46,7 +47,6 @@ const TABS: { key: NavKey; label: string; glyph: string; href: string }[] = [
   { key: 'profile', label: 'More', glyph: '…', href: '/profile' },
 ];
 
-const SIDE_KEY = 'pa-side-collapsed';
 const ACTIVE_BG = 'color-mix(in srgb, var(--pa-primary) 22%, transparent)';
 
 /** Which sidebar item a path belongs to. Sub-pages roll up to their hub (flyer and tools/* → Tech Tools). */
@@ -74,23 +74,17 @@ interface AppLayoutProps {
 export default function AppLayout({ children, title = 'PropAlpha', subtitle = 'URA data to Oct 2026' }: AppLayoutProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [ready, setReady] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
+  const user = useAuthUser(); // undefined until hydrated, null when signed out
+  const [collapsed, toggleSide] = useSidebarCollapsed();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Gate: send signed-out visitors to the login page and remember where they were heading.
   useEffect(() => {
-    if (!isLoggedIn()) {
-      const next = window.location.pathname + window.location.search;
-      router.replace(`/login?next=${encodeURIComponent(next)}`);
-      return;
-    }
-    setUser(getUser());
-    try { setCollapsed(localStorage.getItem(SIDE_KEY) === '1'); } catch { /* private mode */ }
-    setReady(true);
-  }, [router]);
+    if (user !== null) return;
+    const next = window.location.pathname + window.location.search;
+    router.replace(`/login?next=${encodeURIComponent(next)}`);
+  }, [user, router]);
 
   // Close the user menu on outside click or Escape.
   useEffect(() => {
@@ -102,15 +96,7 @@ export default function AppLayout({ children, title = 'PropAlpha', subtitle = 'U
     return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
   }, [menuOpen]);
 
-  function toggleSide() {
-    setCollapsed((c) => {
-      const next = !c;
-      try { localStorage.setItem(SIDE_KEY, next ? '1' : '0'); } catch { /* private mode */ }
-      return next;
-    });
-  }
-
-  if (!ready) return null;
+  if (!user) return null;
 
   const active = activeKey(pathname || '');
   const expanded = !collapsed;

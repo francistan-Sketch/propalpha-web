@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import AppLayout from '@/components/AppLayout';
 import { ErrorBox } from '@/components/app/States';
 import api from '@/lib/api';
-import { getUser, clearAuth, logout, initials, isUnlocked, planLabel, planDescription, type AuthUser } from '@/lib/auth';
+import { logout, initials, isUnlocked, planLabel, planDescription } from '@/lib/auth';
+import { useAuthUser } from '@/components/app/hooks';
 
 // Profile from PropAlpha-App.dc.html: portrait, fields, join code card with QR, plan card, Sign out, Delete account.
 
@@ -40,23 +40,21 @@ function Field({ label, value }: { label: string; value: string }) {
 }
 
 export default function ProfilePage() {
-  const router = useRouter();
-  const [user, setUser] = useState<AuthUser | null>(null);
+  const user = useAuthUser() ?? null;
+  const unlocked = isUnlocked(user);
   const [agent, setAgent] = useState<AgentProfile | null>(null);
   const [shared, setShared] = useState<'idle' | 'copied'>('idle');
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
-    const u = getUser();
-    setUser(u);
-    if (!u || !isUnlocked(u)) return;
+    if (!unlocked) return;
     let alive = true;
     api.get('/flyer/agent')
       .then((res) => { if (alive && res.data?.agent) setAgent(res.data.agent as AgentProfile); })
       .catch(() => { /* 403/404: no agent profile yet; the join code card simply stays hidden */ });
     return () => { alive = false; };
-  }, []);
+  }, [unlocked]);
 
   const joinCode = agent?.join_code || '';
   const joinUrl = JOIN_BASE + encodeURIComponent(joinCode);
@@ -79,8 +77,7 @@ export default function ProfilePage() {
     setDeleteError('');
     try {
       await api.delete('/auth/account');
-      clearAuth();
-      router.replace('/login');
+      logout(); // clears storage and hard-navigates to /login
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } };
       setDeleteError(e?.response?.data?.error || 'The account could not be deleted. Try again, or contact Luminaire Proptech.');

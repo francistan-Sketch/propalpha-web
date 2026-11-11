@@ -25,11 +25,18 @@ export function getUser(): AuthUser | null {
 export function setAuth(token: string, user: AuthUser): void {
   localStorage.setItem('auth_token', token);
   localStorage.setItem('auth_user', JSON.stringify(user));
+  notifyAuth();
 }
 
 export function clearAuth(): void {
   localStorage.removeItem('auth_token');
   localStorage.removeItem('auth_user');
+  notifyAuth();
+}
+
+/** Lets same-tab subscribers (components/app/hooks.ts) re-read the stored user. */
+function notifyAuth(): void {
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event('pa-auth'));
 }
 
 export function isLoggedIn(): boolean {

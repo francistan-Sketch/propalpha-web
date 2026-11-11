@@ -5,10 +5,10 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/api';
 import { setAuth, safeNextPath, type AuthUser } from '@/lib/auth';
-import { getTheme, type PaTheme } from '@/lib/theme';
 import Wordmark from '@/components/site/Wordmark';
 import ThemeToggle from '@/components/site/ThemeToggle';
 import { Spinner } from '@/components/app/States';
+import { useTheme } from '@/components/app/hooks';
 
 // Login gate from PropAlpha-Login.dc.html: Google (server-side redirect), Apple (Apple JS SDK popup),
 // email + password. States: default, loading, error, "signed out on another device" (?reason=session).
@@ -65,21 +65,14 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  // An ?error= from the Google redirect is the initial error; the form clears it on the next attempt.
+  const [error, setError] = useState(() => { const e = searchParams.get('error'); return e ? decodeURIComponent(e) : ''; });
   const [loading, setLoading] = useState<'email' | 'apple' | null>(null);
-  const [theme, setTheme] = useState<PaTheme>('dark');
+  const theme = useTheme();
   const [appleReady, setAppleReady] = useState<boolean | null>(null);
 
   const next = safeNextPath(searchParams.get('next'));
   const signedOutElsewhere = searchParams.get('reason') === 'session';
-
-  // Apple's button follows Apple's rules: white on the dark theme, black on the light theme.
-  useEffect(() => {
-    setTheme(getTheme());
-    const on = (e: Event) => setTheme((e as CustomEvent<PaTheme>).detail);
-    window.addEventListener('pa-theme', on);
-    return () => window.removeEventListener('pa-theme', on);
-  }, []);
 
   useEffect(() => { loadAppleSdk().then(setAppleReady); }, []);
 
@@ -90,12 +83,8 @@ function LoginForm() {
     const name = searchParams.get('name');
     const role = searchParams.get('role');
     const mail = searchParams.get('email');
-    const err = searchParams.get('error');
 
-    if (err) {
-      setError(decodeURIComponent(err));
-      return;
-    }
+    if (searchParams.get('error')) return; // shown as the initial error above; nothing to store
     if (token) {
       const user: AuthUser = { id: userId || '', name: name || '', role: role || 'agent', plan: 'free' };
       if (mail) user.email = mail;
@@ -142,6 +131,7 @@ function LoginForm() {
     }
   }
 
+  // Apple's button follows Apple's rules: white on the dark theme, black on the light theme.
   const dark = theme !== 'light';
   const apple = { bg: dark ? '#fff' : '#000', fg: dark ? '#000' : '#fff', border: dark ? '#fff' : '#000' };
   const fieldBorder = error ? '#F87171' : 'var(--pa-border)';
