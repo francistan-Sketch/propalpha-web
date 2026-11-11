@@ -220,7 +220,7 @@ function LoginForm() {
 
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', fontSize: 14 }}>
             <Link className="pa-link" href="/download">New to PropAlpha? Get the app</Link>
-            <a className="pa-link" href="mailto:contact@luminaireproptech.com.sg?subject=PropAlpha%20password%20reset">Forgot password</a>
+            <Link className="pa-link" href="/forgot">Forgot password</Link>
           </div>
           <p style={{ fontSize: 13, color: 'var(--pa-text-3)', textAlign: 'center' }}>Market data is free. Agent tools are activated by Luminaire Proptech.</p>
         </div>
