@@ -1,8 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import AppLayout from '@/components/AppLayout';
-import api from '@/lib/api';
+import {
+  BackLink, EmptyBlock, ErrorBlock, HeadingRow, LoadingRows, Pills, TableCard,
+  fmtPct, fmtPsf, pageStyle, tableStyle, tdNum, tdStyle, thRight, thStyle, useMarketQuery,
+} from '@/components/app/market/ui';
+
+// GET /market/bestbuy?months — same call and fields as before; only the presentation changed.
 
 interface BestBuyResult {
   project_name: string;
@@ -21,193 +26,76 @@ interface BestBuyResponse {
 }
 
 type PeriodOption = 6 | 12 | 24;
-const PERIOD_OPTIONS: PeriodOption[] = [6, 12, 24];
+const PERIODS: { value: PeriodOption; label: string }[] = [{ value: 6, label: '6m' }, { value: 12, label: '12m' }, { value: 24, label: '2y' }];
+const RANK_COLORS = ['var(--pa-amber)', '#9CA3AF', '#CD7F32'];
 
-function formatPSF(val: number | undefined): string {
-  if (val == null) return '—';
-  return '$' + val.toLocaleString('en-SG', { maximumFractionDigits: 0 });
+function fmtAsOf(d: string | undefined): string | undefined {
+  if (!d) return undefined;
+  const t = new Date(d);
+  return isNaN(t.getTime()) ? d : t.toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' });
 }
-
-function formatPct(val: number | undefined): string {
-  if (val == null) return '—';
-  return val.toFixed(2) + '%';
-}
-
-const rankAccent: Record<number, string> = {
-  0: '#f59e0b', // gold
-  1: '#9ca3af', // silver
-  2: '#b45309', // bronze
-};
-
-const thStyle = {
-  padding: '10px 14px',
-  textAlign: 'left' as const,
-  color: 'var(--muted)',
-  fontSize: '12px',
-  fontWeight: 600 as const,
-  textTransform: 'uppercase' as const,
-  whiteSpace: 'nowrap' as const,
-  borderBottom: '1px solid var(--border)',
-};
-
-const tdStyle = {
-  padding: '11px 14px',
-  color: 'var(--text)',
-  fontSize: '14px',
-  borderBottom: '1px solid var(--border)',
-};
-
-const toggleBase = {
-  padding: '7px 16px',
-  borderRadius: '7px',
-  border: 'none',
-  fontSize: '13px',
-  fontWeight: 600 as const,
-  cursor: 'pointer' as const,
-  transition: 'background 0.15s, color 0.15s',
-};
 
 export default function BestBuyPage() {
   const [months, setMonths] = useState<PeriodOption>(12);
-  const [data, setData] = useState<BestBuyResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  async function fetchData(m: PeriodOption) {
-    setLoading(true);
-    setError('');
-    try {
-      const res = await api.get('/market/bestbuy', { params: { months: m } });
-      setData(res.data);
-    } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      setError(axiosErr?.response?.data?.message || 'Failed to load best buy data.');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    fetchData(12);
-  }, []);
-
-  function handleMonthsChange(m: PeriodOption) {
-    setMonths(m);
-    fetchData(m);
-  }
+  const { data, previous, loading, error, retry } = useMarketQuery<BestBuyResponse>('/market/bestbuy', { months }, 'Failed to load best buy data.');
+  const shown = data ?? previous;
+  const results = data?.results ?? [];
+  const asOf = fmtAsOf(shown?.as_of_date);
 
   return (
-    <AppLayout>
-      <div>
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '24px' }}>
-          <div>
-            <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text)', marginBottom: '4px' }}>
-              Best Buy · Investment
-            </h1>
-            <p style={{ color: 'var(--muted)', fontSize: '14px' }}>
-              Top yield projects over last {data?.period_months ?? months} months
-            </p>
-          </div>
+    <AppLayout title="Best Buy" subtitle={asOf ? `Rents to ${asOf}` : undefined}>
+      <div style={pageStyle}>
+        <BackLink />
 
-          {/* Period selector */}
-          <div style={{
-            display: 'flex',
-            gap: '2px',
-            backgroundColor: 'var(--surface2)',
-            border: '1px solid var(--border)',
-            borderRadius: '9px',
-            padding: '3px',
-          }}>
-            {PERIOD_OPTIONS.map((p) => (
-              <button
-                key={p}
-                onClick={() => handleMonthsChange(p)}
-                style={{
-                  ...toggleBase,
-                  backgroundColor: months === p ? 'var(--accent)' : 'transparent',
-                  color: months === p ? '#fff' : 'var(--muted)',
-                }}
-              >
-                {p}m
-              </button>
-            ))}
-          </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between' }}>
+          <Pills ariaLabel="Rental period" options={PERIODS} value={months} onChange={setMonths} />
         </div>
 
-        {/* Loading */}
-        {loading && (
-          <div style={{ textAlign: 'center', padding: '60px', color: 'var(--muted)' }}>
-            Loading…
-          </div>
+        <HeadingRow
+          title="Singapore · Best Buy"
+          meta={`top projects by gross rental yield · rents over the past ${data?.period_months ?? months} months`}
+        />
+
+        {loading && <LoadingRows />}
+        {!loading && error && <ErrorBlock onRetry={retry}>{error}</ErrorBlock>}
+
+        {!loading && !error && data && results.length === 0 && (
+          <EmptyBlock title="No ranked projects for this period." action="Show the past 2 years" onAction={() => setMonths(24)}>
+            A project needs enough rental contracts and recent sales to be ranked. Try a longer period.
+          </EmptyBlock>
         )}
 
-        {/* Error */}
-        {!loading && error && (
-          <div style={{
-            backgroundColor: 'rgba(239,68,68,0.1)',
-            border: '1px solid rgba(239,68,68,0.3)',
-            borderRadius: '8px',
-            padding: '12px 16px',
-            color: '#f87171',
-            fontSize: '13px',
-          }}>
-            {error}
-          </div>
-        )}
-
-        {/* Empty */}
-        {!loading && !error && data?.results.length === 0 && (
-          <div style={{
-            textAlign: 'center',
-            padding: '60px',
-            backgroundColor: 'var(--surface)',
-            border: '1px solid var(--border)',
-            borderRadius: '14px',
-          }}>
-            <div style={{ fontSize: '40px', marginBottom: '12px' }}>💡</div>
-            <p style={{ color: 'var(--muted)' }}>No investment data available for this period.</p>
-          </div>
-        )}
-
-        {/* Table */}
-        {!loading && !error && data && data.results.length > 0 && (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: 'var(--surface)' }}>
+        {!loading && !error && data && results.length > 0 && (
+          <TableCard footer="Ranked by gross yield: average rent psf × 12 ÷ average sale psf over the past 24 months of sales. Rents and sales from URA REALIS. Yield is before tax, maintenance and vacancy.">
+            <table style={tableStyle}>
               <thead>
-                <tr style={{ backgroundColor: 'var(--surface2)' }}>
-                  {['Rank', 'Project', 'District', 'Sale PSF', 'Annual Rent PSF', 'Yield %', 'Txns'].map((h) => (
-                    <th key={h} style={thStyle}>{h}</th>
-                  ))}
+                <tr>
+                  <th style={thStyle}>Rank</th>
+                  <th style={thStyle}>Project</th>
+                  <th style={thRight}>District</th>
+                  <th style={thRight}>Sale psf</th>
+                  <th style={thRight}>Annual rent psf</th>
+                  <th style={thRight}>Gross yield</th>
+                  <th style={thRight}>Rental txns</th>
                 </tr>
               </thead>
               <tbody>
-                {data.results.map((row, i) => (
-                  <tr
-                    key={i}
-                    style={{
-                      transition: 'background 0.1s',
-                      borderLeft: i < 3 ? `3px solid ${rankAccent[i]}` : '3px solid transparent',
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget as HTMLTableRowElement).style.backgroundColor = 'var(--surface2)'}
-                    onMouseLeave={(e) => (e.currentTarget as HTMLTableRowElement).style.backgroundColor = 'transparent'}
-                  >
-                    <td style={{ ...tdStyle, fontWeight: 700, color: i < 3 ? rankAccent[i] : 'var(--muted)' }}>
-                      #{i + 1}
+                {results.map((row, i) => (
+                  <tr key={`${row.project_name}-${i}`} className="pa-row">
+                    <td style={{ ...tdStyle, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                      <span style={{ display: 'inline-grid', placeItems: 'center', width: 26, height: 26, borderRadius: 13, border: `1.5px solid ${i < 3 ? RANK_COLORS[i] : 'var(--pa-border)'}`, color: i < 3 ? RANK_COLORS[i] : 'var(--pa-text-3)', fontSize: 11 }}>{i + 1}</span>
                     </td>
-                    <td style={{ ...tdStyle, fontWeight: 500 }}>{row.project_name}</td>
-                    <td style={{ ...tdStyle, color: 'var(--muted)' }}>{row.postal_district}</td>
-                    <td style={tdStyle}>{formatPSF(row.avg_sale_psf)}</td>
-                    <td style={tdStyle}>{formatPSF(row.avg_rent_psf_annual)}</td>
-                    <td style={{ ...tdStyle, fontWeight: 700, color: '#34d399' }}>
-                      {formatPct(row.rental_yield_pct)}
-                    </td>
-                    <td style={{ ...tdStyle, color: 'var(--muted)' }}>{row.rental_txns ?? '—'}</td>
+                    <td style={{ ...tdStyle, fontWeight: 600, whiteSpace: 'normal', minWidth: 180 }}>{row.project_name}</td>
+                    <td style={{ ...tdNum, color: 'var(--pa-text-2)' }}>D{row.postal_district}</td>
+                    <td style={tdNum}>{fmtPsf(row.avg_sale_psf)}</td>
+                    <td style={tdNum}>{row.avg_rent_psf_annual != null ? `$${Number(row.avg_rent_psf_annual).toFixed(2)}` : '—'}</td>
+                    <td style={{ ...tdNum, color: 'var(--pa-emerald)', fontWeight: 700 }}>{fmtPct(row.rental_yield_pct)}</td>
+                    <td style={{ ...tdNum, color: 'var(--pa-text-2)' }}>{row.rental_txns ?? '—'}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
+          </TableCard>
         )}
       </div>
     </AppLayout>
