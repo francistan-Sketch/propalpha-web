@@ -14,6 +14,8 @@ export type HubTileProps = {
   /** Where the locked tile's "Upgrade to Plus" link goes. */
   upgradeHref?: string;
   minHeight?: number;
+  /** Top-right tag for an open tile (e.g. the amber "By request" on Ownership Intelligence); ignored when locked or coming. */
+  badge?: ReactNode;
 };
 
 const LockIcon = () => (
@@ -21,7 +23,8 @@ const LockIcon = () => (
 );
 
 // Market and Tech Tools hub tile (22px padding, radius 16, amber kicker, 18px title).
-export default function HubTile({ kicker, title, description, href, coming, locked, upgradeHref = '/pricing', minHeight = 150 }: HubTileProps) {
+export default function HubTile({ kicker, title, description, href, coming, locked, upgradeHref = '/pricing', minHeight = 150, badge }: HubTileProps) {
+  const tagged = locked || coming || !!badge;
   const base: CSSProperties = {
     position: 'relative', padding: 22, borderRadius: 16, border: '1px solid var(--pa-border)', background: 'var(--pa-card)', color: 'var(--pa-text)',
     textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 8, minHeight, opacity: locked ? 0.75 : 1, cursor: locked || !href ? 'default' : 'pointer',
@@ -34,8 +37,9 @@ export default function HubTile({ kicker, title, description, href, coming, lock
         </span>
       )}
       {coming && !locked && <span style={{ position: 'absolute', top: 14, right: 14 }}><Tag kind="coming" /></span>}
+      {badge && !locked && !coming && <span style={{ position: 'absolute', top: 14, right: 14 }}>{badge}</span>}
       <span style={{ fontSize: 11, letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--pa-amber)', fontWeight: 800 }}>{kicker}</span>
-      <strong style={{ fontSize: 18, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', paddingRight: locked || coming ? 72 : 0 }}>
+      <strong style={{ fontSize: 18, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', paddingRight: tagged ? 72 : 0 }}>
         {title}
         {coming && locked && <Tag kind="coming" />}
       </strong>

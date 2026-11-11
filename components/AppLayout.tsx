@@ -10,12 +10,13 @@ import { Tag } from '@/components/site/ui';
 import AlphaMark from '@/components/app/AlphaMark';
 import AskSocrates from '@/components/app/AskSocrates';
 import { useAuthUser, useSidebarCollapsed } from '@/components/app/hooks';
+import { LANDED_OWNERS, useFeatures } from '@/lib/features';
 
 // Signed-in shell from PropAlpha-App.dc.html: sticky 240px sidebar (68px icon rail when collapsed),
 // 64px top bar with title, data label, global Ask Socrates pill, theme toggle and user menu; a 64px
 // bottom tab bar replaces the sidebar under 860px (globals.css: .pa-app-side / .pa-app-tabs / .pa-app-main).
 
-type NavKey = 'dashboard' | 'socrates' | 'search' | 'tower' | 'launches' | 'market' | 'maps' | 'tools' | 'inbox' | 'profile';
+type NavKey = 'dashboard' | 'socrates' | 'search' | 'tower' | 'launches' | 'market' | 'maps' | 'tools' | 'ownership' | 'inbox' | 'profile';
 
 interface NavItem {
   key: NavKey;
@@ -24,6 +25,8 @@ interface NavItem {
   /** Route; `undefined` for an item that has nowhere to go yet (Inbox). */
   href?: string;
   coming?: boolean;
+  /** The item exists only for accounts holding this explicit feature grant (GET /tenancy/features). */
+  grant?: string;
 }
 
 const NAV: NavItem[] = [
@@ -35,6 +38,8 @@ const NAV: NavItem[] = [
   { key: 'market', label: 'Market', glyph: 'M', href: '/market' },
   { key: 'maps', label: 'Maps', glyph: '◎', href: '/dashboard#maps', coming: true },
   { key: 'tools', label: 'Tech Tools', glyph: '⚒', href: '/tools' },
+  // Ownership Intelligence is personal data: the entry exists only with the `landed_owners` grant, never locked.
+  { key: 'ownership', label: 'Ownership', glyph: 'O', href: '/tools/ownership', grant: LANDED_OWNERS },
   { key: 'inbox', label: 'Inbox', glyph: '✉', coming: true },
   { key: 'profile', label: 'Profile', glyph: 'P', href: '/profile' },
 ];
@@ -49,7 +54,7 @@ const TABS: { key: NavKey; label: string; glyph: string; href: string }[] = [
 
 const ACTIVE_BG = 'color-mix(in srgb, var(--pa-primary) 22%, transparent)';
 
-/** Which sidebar item a path belongs to. Sub-pages roll up to their hub (flyer and tools/* → Tech Tools). */
+/** Which sidebar item a path belongs to. Sub-pages roll up to their hub (flyer and tools/* → Tech Tools; tools/ownership/* → Ownership). */
 function activeKey(pathname: string): NavKey | null {
   const is = (p: string) => pathname === p || pathname.startsWith(p + '/');
   if (is('/dashboard')) return 'dashboard';
@@ -58,6 +63,7 @@ function activeKey(pathname: string): NavKey | null {
   if (is('/tower')) return 'tower';
   if (is('/launches')) return 'launches';
   if (is('/market')) return 'market';
+  if (is('/tools/ownership')) return 'ownership';
   if (is('/tools') || is('/flyer')) return 'tools';
   if (is('/profile')) return 'profile';
   return null;
@@ -78,6 +84,7 @@ export default function AppLayout({ children, title = 'PropAlpha', subtitle = 'U
   const [collapsed, toggleSide] = useSidebarCollapsed();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const { features } = useFeatures(!!user); // grant-gated nav items; fetched once per page lifetime
 
   // Gate: send signed-out visitors to the login page and remember where they were heading.
   useEffect(() => {
@@ -102,6 +109,7 @@ export default function AppLayout({ children, title = 'PropAlpha', subtitle = 'U
   const expanded = !collapsed;
   const plan = planLabel(user);
   const name = user?.name || 'PropAlpha user';
+  const nav = NAV.filter((n) => !n.grant || (features?.includes(n.grant) ?? false));
 
   return (
     <div className="pa-page" style={{ display: 'flex', minHeight: '100vh' }}>
@@ -120,7 +128,7 @@ export default function AppLayout({ children, title = 'PropAlpha', subtitle = 'U
           )}
         </div>
         <nav aria-label="App" style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: 10, flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
-          {NAV.map((n) => {
+          {nav.map((n) => {
             const on = active === n.key && !n.coming;
             const rowStyle = {
               display: 'flex', alignItems: 'center', gap: 12, height: 42, padding: '0 10px', borderRadius: 10, border: 0, width: '100%',
@@ -203,7 +211,7 @@ export default function AppLayout({ children, title = 'PropAlpha', subtitle = 'U
           style={{ display: 'none', position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 30, height: 64, borderTop: '1px solid var(--pa-border)', background: 'color-mix(in srgb, var(--pa-card) 92%, transparent)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)', paddingBottom: 'env(safe-area-inset-bottom)' }}
         >
           {TABS.map((t) => {
-            const on = active === t.key;
+            const on = active === t.key || (t.key === 'tools' && active === 'ownership');
             return (
               <Link key={t.key} href={t.href} aria-current={on ? 'page' : undefined} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, color: on ? 'var(--pa-text)' : 'var(--pa-text-3)', fontSize: 11, fontWeight: 700, minHeight: 44, minWidth: 0 }}>
                 <span aria-hidden="true" style={{ width: 22, height: 22, borderRadius: 6, background: on ? 'var(--pa-primary)' : 'transparent', display: 'grid', placeItems: 'center', fontSize: 10, color: on ? '#fff' : 'var(--pa-text-3)' }}>{t.glyph}</span>
