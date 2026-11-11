@@ -67,8 +67,9 @@ export default function Home() {
   const chartShot: { id: ShotId; position: string } = inPublic('site/shots/ipad-x01-socrates-chart.png')
     ? { id: 'ipad-x01-socrates-chart', position: '50% 25%' }
     : { id: 'iphone69-07', position: '50% 46%' };
-  const rentShot: { id: ShotId; position: string } = inPublic('site/shots/ipad-x02-socrates-industrial.png')
-    ? { id: 'ipad-x02-socrates-industrial', position: '50% 25%' }
+  // The industrial-rents question answers in prose (no card), so the card shows the Industrial Rents screen itself.
+  const rentShot: { id: ShotId; position: string } = inPublic('site/shots/ipad-x04-industrial-rents.png')
+    ? { id: 'ipad-x04-industrial-rents', position: '50% 14%' }
     : { id: 'iphone69-06', position: '50% 67%' };
   const askShots: { id: ShotId; position: string }[] = [
     { id: 'iphone69-02', position: '50% 52%' }, // tower grid
