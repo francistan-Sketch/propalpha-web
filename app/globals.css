@@ -1,45 +1,118 @@
 @import "tailwindcss";
 
+/* PropAlpha 2.0 token sheet (ported from design_handoff_propalpha_website/pa-tokens.css).
+   Dark is the default; html[data-theme="light"] switches. Legacy --bg/--surface/... aliases keep the
+   older signed-in pages rendering until they are reskinned. */
 :root {
-  --bg: #060612;
-  --surface: #0d0f1e;
-  --surface2: #131629;
-  --border: #1e2244;
-  --accent: #4f8ef7;
-  --accent2: #7c5cfc;
-  --text: #e8eaf6;
-  --muted: #8892a4;
-  --green: #22c55e;
-  --gold: #f59e0b;
+  --pa-bg: #0E0920; --pa-surface: #1C1340; --pa-card: #120D2A; --pa-border: #2D1F6E;
+  --pa-primary: #7028B8; --pa-primary-dim: #5A22A0; --pa-deep-1: #2D1565; --pa-deep-2: #3D1A82;
+  --pa-amber: #F59E0B; --pa-emerald: #10B981; --pa-error: #F87171;
+  --pa-text: #FFFFFF; --pa-text-2: #C4B5FD; --pa-muted: #4B3D8A; --pa-text-3: #8E7CC8;
+  --pa-well: #120D2A; --pa-well-border: #2D1F6E;
+  --pa-shadow: 0 30px 80px -20px rgba(45,21,101,.75), 0 0 0 1px var(--pa-border);
+  --pa-glow-a: rgba(112,40,184,.45); --pa-glow-b: rgba(245,158,11,.14); --pa-grid-line: rgba(196,181,253,.07);
+  --pa-primary-text: #C4B5FD;
+  --radius-sm: 6px; --radius-md: 10px; --radius-lg: 16px; --pa-radius-shot: 24px;
+  --font-display: var(--font-archivo), "Archivo", system-ui, sans-serif;
+  --font-body: var(--font-archivo), "Archivo", system-ui, sans-serif;
+  --pa-max: 1200px; --pa-pad: clamp(20px, 5vw, 64px); --pa-sec: clamp(72px, 10vw, 140px);
+  color-scheme: dark;
+
+  /* legacy aliases used by the existing signed-in pages */
+  --bg: var(--pa-bg); --surface: var(--pa-card); --surface2: var(--pa-surface); --border: var(--pa-border);
+  --accent: var(--pa-primary); --accent2: var(--pa-deep-2); --text: var(--pa-text); --muted: var(--pa-text-2);
+  --green: var(--pa-emerald); --gold: var(--pa-amber);
+}
+html[data-theme="light"] {
+  --pa-bg: #F4F0FA; --pa-surface: #FFFFFF; --pa-card: #FAF5FF; --pa-border: #DDD6FE;
+  --pa-emerald: #16A34A; --pa-text: #1E1B4B; --pa-text-2: #7C3AED; --pa-muted: #9CA3AF; --pa-text-3: #6B5FA6;
+  --pa-shadow: 0 30px 80px -20px rgba(112,40,184,.30), 0 0 0 1px var(--pa-border);
+  --pa-glow-a: rgba(112,40,184,.16); --pa-glow-b: rgba(245,158,11,.10); --pa-grid-line: rgba(112,40,184,.10);
+  --pa-primary-text: #7028B8;
+  color-scheme: light;
 }
 
 * { box-sizing: border-box; }
-
 html { scroll-behavior: smooth; }
+html, body { margin: 0; background: var(--pa-bg); color: var(--pa-text); font-family: var(--font-body); font-size: 16px; line-height: 1.55; -webkit-font-smoothing: antialiased; }
+body { transition: background .25s, color .25s; }
+h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 800; letter-spacing: -0.025em; line-height: 1.05; margin: 0; text-wrap: pretty; }
+p { margin: 0; text-wrap: pretty; }
+a { color: var(--pa-text-2); text-decoration: none; }
+a:hover { color: var(--pa-text); }
+button { font: inherit; }
+:focus { outline: none; }
+:focus-visible { outline: 2px solid var(--pa-amber); outline-offset: 2px; }
+::selection { background: rgba(112,40,184,.45); }
+input, textarea, select { font: inherit; color: inherit; }
+input::placeholder, textarea::placeholder { color: var(--pa-text-3); }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--pa-bg); }
+::-webkit-scrollbar-thumb { background: var(--pa-border); border-radius: 3px; }
 
-body {
-  background-color: var(--bg);
-  color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  -webkit-font-smoothing: antialiased;
+/* kept for the older pages */
+.gradient-text { background: linear-gradient(135deg, #a78bfa 0%, #C4B5FD 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+
+/* Hover / pressed states */
+.pa-btn { transition: filter .15s, transform .15s; }
+.pa-btn:hover { filter: brightness(1.12); }
+.pa-btn:active { filter: brightness(.9); transform: translateY(1px); }
+.pa-link:hover { color: var(--pa-text) !important; }
+.pa-row:hover { background: color-mix(in srgb, var(--pa-primary) 10%, transparent); }
+.pa-card-h { transition: transform .25s, box-shadow .25s, border-color .25s; }
+.pa-card-h:hover { transform: translateY(-3px); border-color: var(--pa-primary) !important; box-shadow: var(--pa-shadow); }
+
+/* The background: glow gradients, a fading line grid, two drifting orbs and grain. */
+.pa-bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.pa-bg::before { content: ""; position: absolute; inset: -20% -10% 0; background:
+  radial-gradient(60% 50% at 20% 0%, var(--pa-glow-a), transparent 70%),
+  radial-gradient(45% 40% at 85% 10%, var(--pa-glow-b), transparent 70%),
+  radial-gradient(70% 60% at 50% 110%, rgba(61,26,130,.35), transparent 70%);
+  animation: pa-drift 28s ease-in-out infinite alternate; }
+.pa-bg::after { content: ""; position: absolute; inset: 0;
+  background-image: linear-gradient(var(--pa-grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--pa-grid-line) 1px, transparent 1px);
+  background-size: 64px 64px; mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 20%, transparent 100%); -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 20%, transparent 100%); }
+.pa-grain { position: absolute; inset: 0; opacity: .5; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .06 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); }
+.pa-orb { position: absolute; width: 60vmax; height: 60vmax; border-radius: 50%; filter: blur(80px); opacity: .55; }
+.pa-orb-1 { left: -20vmax; top: -30vmax; background: radial-gradient(circle, var(--pa-deep-2), transparent 65%); animation: pa-orb1 36s ease-in-out infinite alternate; }
+.pa-orb-2 { right: -25vmax; top: 10vmax; background: radial-gradient(circle, rgba(112,40,184,.5), transparent 65%); animation: pa-orb2 44s ease-in-out infinite alternate; }
+html[data-theme="light"] .pa-orb { opacity: .25; }
+html[data-theme="light"] .pa-grain { opacity: .25; }
+@keyframes pa-drift { from { transform: translate3d(0,0,0) } to { transform: translate3d(-3%, 2%, 0) } }
+@keyframes pa-orb1 { from { transform: translate3d(0,0,0) scale(1) } to { transform: translate3d(12vw, 8vh, 0) scale(1.15) } }
+@keyframes pa-orb2 { from { transform: translate3d(0,0,0) scale(1) } to { transform: translate3d(-10vw, 12vh, 0) scale(.9) } }
+@keyframes pa-caret { 50% { opacity: 0 } }
+@keyframes pa-rise { from { opacity: 0; transform: translateY(24px) } to { opacity: 1; transform: none } }
+@keyframes pa-marquee { to { transform: translateX(-50%) } }
+@keyframes pa-pulse { 50% { opacity: .35 } }
+@keyframes pa-spin { to { transform: rotate(360deg) } }
+.pa-rise { animation: pa-rise .7s ease-out both; }
+.pa-marquee-track { animation: pa-marquee 40s linear infinite; }
+.pa-pulse { animation: pa-pulse 1.4s ease-in-out infinite; }
+.pa-spin { animation: pa-spin .8s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .pa-bg::before, .pa-orb, .pa-rise, .pa-marquee-track, .pa-pulse, .pa-spin { animation: none !important; }
+  .pa-rise { opacity: 1; transform: none; }
 }
 
-::selection { background: rgba(79,142,247,0.25); }
+/* Screenshot well: the one frame every app screenshot sits in, in both themes. */
+.pa-well { position: relative; overflow: hidden; border-radius: var(--pa-radius-shot); background: var(--pa-well); border: 1px solid var(--pa-well-border); box-shadow: var(--pa-shadow); }
+.pa-well img { display: block; width: 100%; height: 100%; object-fit: cover; }
 
-.gradient-text {
-  background: linear-gradient(135deg, #4f8ef7 0%, #a78bfa 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+/* Responsive helpers the inline styles cannot express */
+.pa-page { position: relative; z-index: 1; }
+.pa-desk { display: contents; } .pa-mob { display: none !important; }
+.pa-strip { display: grid; }
+@media (max-width: 860px) {
+  .pa-desk { display: none !important; } .pa-mob { display: flex !important; }
+  .pa-2col { grid-template-columns: 1fr !important; }
+  .pa-3col { grid-template-columns: 1fr !important; }
+  .pa-flip { order: -1; }
+  .pa-hide-m { display: none !important; }
+  .pa-strip { display: flex !important; overflow-x: auto; scroll-snap-type: x mandatory; gap: 16px !important; padding-bottom: 8px; }
+  .pa-strip > * { flex: 0 0 78vw; scroll-snap-align: start; }
+  .pa-app-side { display: none !important; } .pa-app-tabs { display: flex !important; }
+  .pa-app-main { padding: 16px !important; } .pa-app-top-ask { display: none !important; }
 }
-
-.gradient-text-gold {
-  background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-::-webkit-scrollbar { width: 5px; }
-::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+@media (max-width: 560px) { .pa-4col { grid-template-columns: 1fr 1fr !important; } }

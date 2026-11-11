@@ -1,242 +1,41 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import AppLayout from '@/components/AppLayout';
+import HubTile from '@/components/app/HubTile';
+import { getUser, isUnlocked } from '@/lib/auth';
 
-// ── Stamp duty calculations (2024 rates) ──────────────────────────────────────
+// Tech Tools hub from PropAlpha-App.dc.html. Agent tools carry the locked treatment for free-plan users;
+// calculators are free for everyone and live in the app for now.
+type Tool = { kicker: string; title: string; description: string; href?: string; coming?: boolean; agentOnly: boolean };
 
-function calcBSD(price: number): number {
-  // 1% on first $180k, 2% on next $180k, 3% on next $640k, 4% on next $500k, 5% on next $1.5M, 6% above
-  const brackets = [
-    { limit: 180_000, rate: 0.01 },
-    { limit: 180_000, rate: 0.02 },
-    { limit: 640_000, rate: 0.03 },
-    { limit: 500_000, rate: 0.04 },
-    { limit: 1_500_000, rate: 0.05 },
-    { limit: Infinity, rate: 0.06 },
-  ];
-  let remaining = price;
-  let tax = 0;
-  for (const b of brackets) {
-    const chunk = Math.min(remaining, b.limit);
-    tax += chunk * b.rate;
-    remaining -= chunk;
-    if (remaining <= 0) break;
-  }
-  return tax;
-}
-
-type BuyerType = 'sc1' | 'sc2' | 'sc3' | 'pr1' | 'pr2' | 'foreigner';
-
-function calcABSD(price: number, buyerType: BuyerType): number {
-  const rates: Record<BuyerType, number> = {
-    sc1: 0,
-    sc2: 0.20,
-    sc3: 0.30,
-    pr1: 0.05,
-    pr2: 0.30,
-    foreigner: 0.60,
-  };
-  return price * (rates[buyerType] ?? 0);
-}
-
-function fmt(n: number): string {
-  return '$' + Math.round(n).toLocaleString('en-SG');
-}
-
-const BUYER_OPTIONS = [
-  { value: 'sc1', label: 'Singapore Citizen — 1st property' },
-  { value: 'sc2', label: 'Singapore Citizen — 2nd property' },
-  { value: 'sc3', label: 'Singapore Citizen — 3rd+ property' },
-  { value: 'pr1', label: 'Permanent Resident — 1st property' },
-  { value: 'pr2', label: 'Permanent Resident — 2nd+ property' },
-  { value: 'foreigner', label: 'Foreigner' },
+const TOOLS: Tool[] = [
+  { kicker: 'Valuation', title: 'Income Valuation', description: 'Direct cap, DCF, IRR, equity multiple, sensitivity, PDF.', href: '/tools/income-valuation', agentOnly: true },
+  { kicker: 'Calculator', title: 'Buyer Calculator', description: 'Resale, New Launch, Executive Condo. BSD, ABSD, CPF, TDSR.', href: '/download', coming: true, agentOnly: false },
+  { kicker: 'Calculator', title: 'Executive Condo loan cap', description: 'Income ceiling and the lower of TDSR 55% and MSR 30%.', href: '/download', coming: true, agentOnly: false },
+  { kicker: 'Flyers', title: 'Flyer Maker', description: "Your estate's market letter, in minutes.", href: '/flyer', agentOnly: true },
+  { kicker: 'Forms', title: 'CEA Forms 1 to 8', description: 'All eight prescribed forms, PDF export.', coming: true, agentOnly: true },
+  { kicker: 'Tenancy', title: 'Tenancy tools', description: 'LOI, Tenancy Agreement, room inventory.', coming: true, agentOnly: true },
+  { kicker: 'Clients', title: 'Inbox', description: 'Client chat, photo sharing, WhatsApp hand-off.', coming: true, agentOnly: true },
 ];
 
-// ── Sub-components ─────────────────────────────────────────────────────────────
-
-function ComingSoonCard({ icon, title, description }: { icon: string; title: string; description: string }) {
-  return (
-    <div style={{
-      backgroundColor: 'var(--surface)',
-      border: '1px solid var(--border)',
-      borderRadius: '14px',
-      padding: '24px',
-      opacity: 0.7,
-    }}>
-      <div style={{ fontSize: '32px', marginBottom: '12px' }}>{icon}</div>
-      <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text)', marginBottom: '8px' }}>{title}</h3>
-      <p style={{ fontSize: '13px', color: 'var(--muted)', lineHeight: 1.5, marginBottom: '12px' }}>{description}</p>
-      <span style={{
-        fontSize: '11px',
-        padding: '3px 8px',
-        borderRadius: '4px',
-        backgroundColor: 'rgba(245,158,11,0.15)',
-        color: 'var(--gold)',
-        fontWeight: 600,
-        letterSpacing: '0.05em',
-      }}>
-        MOBILE APP
-      </span>
-    </div>
-  );
-}
-
-function BuyerCalculator() {
-  const [priceStr, setPriceStr] = useState('');
-  const [buyerType, setBuyerType] = useState<BuyerType>('sc1');
-  const [result, setResult] = useState<{ bsd: number; absd: number; total: number } | null>(null);
-
-  function calculate() {
-    const price = parseFloat(priceStr.replace(/,/g, ''));
-    if (!price || price <= 0) return;
-    const bsd = calcBSD(price);
-    const absd = calcABSD(price, buyerType);
-    setResult({ bsd, absd, total: bsd + absd });
-  }
-
-  const inputStyle = {
-    width: '100%',
-    padding: '10px 12px',
-    borderRadius: '8px',
-    border: '1px solid var(--border)',
-    backgroundColor: 'var(--surface2)',
-    color: 'var(--text)',
-    fontSize: '14px',
-    outline: 'none',
-  };
-
-  const labelStyle = {
-    display: 'block' as const,
-    color: 'var(--muted)',
-    fontSize: '12px',
-    marginBottom: '5px',
-    fontWeight: 500 as const,
-  };
-
-  return (
-    <div style={{
-      backgroundColor: 'var(--surface)',
-      border: '1px solid var(--border)',
-      borderRadius: '14px',
-      padding: '24px',
-    }}>
-      <div style={{ fontSize: '32px', marginBottom: '12px' }}>🧮</div>
-      <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text)', marginBottom: '4px' }}>
-        Buyer Stamp Duty Calculator
-      </h3>
-      <p style={{ fontSize: '13px', color: 'var(--muted)', marginBottom: '20px' }}>
-        BSD + ABSD based on 2024 Singapore rates.
-      </p>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '18px' }}>
-        <div>
-          <label style={labelStyle}>Property Price (SGD)</label>
-          <input
-            type="text"
-            value={priceStr}
-            onChange={(e) => setPriceStr(e.target.value)}
-            placeholder="e.g. 1500000"
-            style={inputStyle}
-          />
-        </div>
-        <div>
-          <label style={labelStyle}>Buyer Profile</label>
-          <select
-            value={buyerType}
-            onChange={(e) => setBuyerType(e.target.value as BuyerType)}
-            style={inputStyle}
-          >
-            {BUYER_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <button
-        onClick={calculate}
-        style={{
-          padding: '11px 24px',
-          borderRadius: '9px',
-          border: 'none',
-          backgroundColor: 'var(--accent)',
-          color: '#fff',
-          fontSize: '14px',
-          fontWeight: 600,
-          cursor: 'pointer',
-          marginBottom: '20px',
-          width: '100%',
-        }}
-      >
-        Calculate
-      </button>
-
-      {result && (
-        <div style={{
-          backgroundColor: 'var(--surface2)',
-          border: '1px solid var(--border)',
-          borderRadius: '10px',
-          padding: '16px',
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-            <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Buyer&apos;s Stamp Duty (BSD)</span>
-            <span style={{ color: 'var(--text)', fontWeight: 600, fontSize: '13px' }}>{fmt(result.bsd)}</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-            <span style={{ color: 'var(--muted)', fontSize: '13px' }}>Additional BSD (ABSD)</span>
-            <span style={{ color: result.absd > 0 ? '#f87171' : 'var(--green)', fontWeight: 600, fontSize: '13px' }}>
-              {result.absd === 0 ? 'Nil' : fmt(result.absd)}
-            </span>
-          </div>
-          <div style={{ borderTop: '1px solid var(--border)', paddingTop: '10px', display: 'flex', justifyContent: 'space-between' }}>
-            <span style={{ color: 'var(--text)', fontSize: '14px', fontWeight: 700 }}>Total Stamp Duty</span>
-            <span style={{ color: 'var(--accent)', fontSize: '16px', fontWeight: 700 }}>{fmt(result.total)}</span>
-          </div>
-          <p style={{ color: 'var(--muted)', fontSize: '11px', marginTop: '10px' }}>
-            * Indicative only. BSD rates: 1% up to $180k, 2% next $180k, 3% next $640k, 4% next $500k, 5% next $1.5M, 6% above. ABSD rates per buyer profile. Verify with IRAS.
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Main page ──────────────────────────────────────────────────────────────────
-
 export default function ToolsPage() {
+  const [unlocked, setUnlocked] = useState(true);
+  useEffect(() => { setUnlocked(isUnlocked(getUser())); }, []);
+
   return (
-    <AppLayout>
-      <div>
-        <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text)', marginBottom: '6px' }}>
-          Agent Tools
-        </h1>
-        <p style={{ color: 'var(--muted)', fontSize: '14px', marginBottom: '28px' }}>
-          Productivity tools for Singapore real estate professionals.
-        </p>
-
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-          gap: '16px',
-          alignItems: 'start',
-        }}>
-          {/* CEA Forms — mobile only */}
-          <ComingSoonCard
-            icon="📜"
-            title="CEA Forms"
-            description="Form 5 — Exclusive Agency Agreement — PDF generation. Available on the PropAlpha mobile app."
-          />
-
-          {/* Buyer Calculator — inline */}
-          <BuyerCalculator />
-
-          {/* Tenancy — mobile only */}
-          <ComingSoonCard
-            icon="🏠"
-            title="Tenancy Agreement"
-            description="Generate LOI &amp; TA documents, room inventory reports, and tenancy summaries. Available on the PropAlpha mobile app."
-          />
+    <AppLayout title="Tech Tools">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        {!unlocked && (
+          <div role="status" style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', padding: '14px 16px', borderRadius: 14, border: '1px solid color-mix(in srgb, var(--pa-amber) 50%, transparent)', background: 'color-mix(in srgb, var(--pa-amber) 10%, transparent)', fontSize: 14 }}>
+            <span style={{ flex: 1, minWidth: 220 }}>Tech Tools are agent tools. Ask Luminaire Proptech to activate them for your account.</span>
+            <a className="pa-btn" href="mailto:contact@luminaireproptech.com.sg?subject=PropAlpha%20Tech%20Tools%20activation" style={{ height: 36, display: 'inline-flex', alignItems: 'center', padding: '0 14px', borderRadius: 9, background: 'var(--pa-amber)', color: '#1E1B4B', fontWeight: 800, fontSize: 13, whiteSpace: 'nowrap' }}>Request activation</a>
+          </div>
+        )}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(250px,1fr))', gap: 14 }}>
+          {TOOLS.map((t) => (
+            <HubTile key={t.title} kicker={t.kicker} title={t.title} description={t.description} href={t.href} coming={t.coming} locked={t.agentOnly && !unlocked} minHeight={160} />
+          ))}
         </div>
       </div>
     </AppLayout>

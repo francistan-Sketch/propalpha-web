@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  turbopack: { root: __dirname },
+  images: { qualities: [75, 82], formats: ["image/avif", "image/webp"] },
   async headers() {
     return [
       {

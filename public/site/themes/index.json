@@ -1,0 +1,82 @@
+[
+  {
+    "slug": "market-letter-a4",
+    "name": "Market Letter (A4, 2 pages)",
+    "format": "a4",
+    "width": 794,
+    "height": 2246,
+    "file": "/site/themes/market-letter-a4.png"
+  },
+  {
+    "slug": "social-portrait",
+    "name": "Social Portrait (1080×1350)",
+    "format": "social_portrait",
+    "width": 1080,
+    "height": 1350,
+    "file": "/site/themes/social-portrait.png"
+  },
+  {
+    "slug": "social-landscape",
+    "name": "Social Landscape (1920×1080)",
+    "format": "social_landscape",
+    "width": 1920,
+    "height": 1080,
+    "file": "/site/themes/social-landscape.png"
+  },
+  {
+    "slug": "letter-modernist",
+    "name": "Market Letter · Modernist (A4 fold-to-A5)",
+    "format": "a4_landscape",
+    "width": 1123,
+    "height": 1588,
+    "file": "/site/themes/letter-modernist.png"
+  },
+  {
+    "slug": "letter-broadsheet",
+    "name": "Market Letter · Broadsheet (A4 fold-to-A5)",
+    "format": "a4_landscape",
+    "width": 1123,
+    "height": 1588,
+    "file": "/site/themes/letter-broadsheet.png"
+  },
+  {
+    "slug": "letter-ledger",
+    "name": "Market Letter · Ledger (A4 fold-to-A5)",
+    "format": "a4_landscape",
+    "width": 1123,
+    "height": 1588,
+    "file": "/site/themes/letter-ledger.png"
+  },
+  {
+    "slug": "letter-poster",
+    "name": "Market Letter · Poster (A4 fold-to-A5)",
+    "format": "a4_landscape",
+    "width": 1123,
+    "height": 1588,
+    "file": "/site/themes/letter-poster.png"
+  },
+  {
+    "slug": "letter-estate",
+    "name": "Market Letter · Estate (A4 fold-to-A5)",
+    "format": "a4_landscape",
+    "width": 1123,
+    "height": 1588,
+    "file": "/site/themes/letter-estate.png"
+  },
+  {
+    "slug": "letter-prestige",
+    "name": "Market Letter · Prestige (A4 fold-to-A5)",
+    "format": "a4_landscape",
+    "width": 1123,
+    "height": 1588,
+    "file": "/site/themes/letter-prestige.png"
+  },
+  {
+    "slug": "propalpha-app",
+    "name": "PropAlpha App Flyer (A4 fold-to-A5)",
+    "format": "a4_landscape",
+    "width": 1123,
+    "height": 1588,
+    "file": "/site/themes/propalpha-app.png"
+  }
+]

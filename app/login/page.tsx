@@ -1,12 +1,64 @@
 'use client';
 
-import { useState, useEffect, FormEvent, Suspense } from 'react';
+import { useState, useEffect, type FormEvent, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/api';
-import { setAuth } from '@/lib/auth';
+import { setAuth, safeNextPath, type AuthUser } from '@/lib/auth';
+import { getTheme, type PaTheme } from '@/lib/theme';
+import Wordmark from '@/components/site/Wordmark';
+import ThemeToggle from '@/components/site/ThemeToggle';
+import { Spinner } from '@/components/app/States';
+
+// Login gate from PropAlpha-Login.dc.html: Google (server-side redirect), Apple (Apple JS SDK popup),
+// email + password. States: default, loading, error, "signed out on another device" (?reason=session).
 
 const BACKEND_URL = 'https://propalpha-backend-production.up.railway.app';
+const APPLE_SDK = 'https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js';
+const APPLE_SERVICE_ID = process.env.NEXT_PUBLIC_APPLE_SERVICE_ID || '';
+const APPLE_REDIRECT_URI = process.env.NEXT_PUBLIC_APPLE_REDIRECT_URI || 'https://www.propalpha.tech/login';
+const APPLE_NOT_READY = 'Apple sign-in is not switched on yet. Use Google or email.';
+
+type AppleSignInResult = {
+  authorization: { id_token: string; code: string; state?: string };
+  user?: { name?: { firstName?: string; lastName?: string }; email?: string };
+};
+
+declare global {
+  interface Window {
+    AppleID?: {
+      auth: {
+        init(config: { clientId: string; scope: string; redirectURI: string; state?: string; usePopup?: boolean }): void;
+        signIn(): Promise<AppleSignInResult>;
+      };
+    };
+  }
+}
+
+/** Load Apple's SDK once and initialise it with the Services ID. Resolves false if the env is not set. */
+function loadAppleSdk(): Promise<boolean> {
+  if (!APPLE_SERVICE_ID) return Promise.resolve(false);
+  return new Promise((resolve) => {
+    const init = () => {
+      try {
+        window.AppleID?.auth.init({ clientId: APPLE_SERVICE_ID, scope: 'name email', redirectURI: APPLE_REDIRECT_URI, usePopup: true });
+        resolve(!!window.AppleID);
+      } catch { resolve(false); }
+    };
+    if (window.AppleID) return init();
+    const existing = document.querySelector<HTMLScriptElement>(`script[src="${APPLE_SDK}"]`);
+    const s = existing ?? document.createElement('script');
+    s.addEventListener('load', init);
+    s.addEventListener('error', () => resolve(false));
+    if (!existing) { s.src = APPLE_SDK; s.async = true; document.head.appendChild(s); }
+  });
+}
+
+function serverError(err: unknown): string | null {
+  const e = err as { response?: { data?: { error?: string; message?: string } }; message?: string };
+  if (!e?.response) return null;
+  return e.response.data?.error || e.response.data?.message || null;
+}
 
 function LoginForm() {
   const router = useRouter();
@@ -14,217 +66,175 @@ function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<'email' | 'apple' | null>(null);
+  const [theme, setTheme] = useState<PaTheme>('dark');
+  const [appleReady, setAppleReady] = useState<boolean | null>(null);
 
-  // Handle redirect back from Google OAuth (server-side flow)
+  const next = safeNextPath(searchParams.get('next'));
+  const signedOutElsewhere = searchParams.get('reason') === 'session';
+
+  // Apple's button follows Apple's rules: white on the dark theme, black on the light theme.
+  useEffect(() => {
+    setTheme(getTheme());
+    const on = (e: Event) => setTheme((e as CustomEvent<PaTheme>).detail);
+    window.addEventListener('pa-theme', on);
+    return () => window.removeEventListener('pa-theme', on);
+  }, []);
+
+  useEffect(() => { loadAppleSdk().then(setAppleReady); }, []);
+
+  // Handle redirect back from Google OAuth (server-side flow): /login?token=…&userId=…&name=…&role=…&email=…
   useEffect(() => {
     const token = searchParams.get('token');
-    const name  = searchParams.get('name');
-    const role  = searchParams.get('role');
-    const err   = searchParams.get('error');
+    const userId = searchParams.get('userId');
+    const name = searchParams.get('name');
+    const role = searchParams.get('role');
+    const mail = searchParams.get('email');
+    const err = searchParams.get('error');
 
     if (err) {
       setError(decodeURIComponent(err));
       return;
     }
     if (token) {
-      setAuth(token, { id: '', name: name || '', role: role || 'agent', plan: 'free' });
-      router.replace('/dashboard');
+      const user: AuthUser = { id: userId || '', name: name || '', role: role || 'agent', plan: 'free' };
+      if (mail) user.email = mail;
+      setAuth(token, user);
+      router.replace(next);
     }
-  }, [searchParams, router]);
+  }, [searchParams, router, next]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError('');
-    setLoading(true);
+    setLoading('email');
     try {
       const res = await api.post('/auth/login', { email, password });
-      const { token, user } = res.data;
+      const { token, user } = res.data as { token: string; user: AuthUser };
       setAuth(token, user);
-      router.push('/dashboard');
+      router.push(next);
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string } } };
-      setError(axiosErr?.response?.data?.message || 'Invalid email or password. Please try again.');
-    } finally {
-      setLoading(false);
+      setError(serverError(err) || 'Wrong email or password. Try again, or reset your password.');
+      setLoading(null);
     }
   }
 
+  async function handleApple() {
+    setError('');
+    if (!APPLE_SERVICE_ID) { setError(APPLE_NOT_READY); return; }
+    const ready = appleReady ?? (await loadAppleSdk());
+    if (!ready || !window.AppleID) { setError(APPLE_NOT_READY); return; }
+    setLoading('apple');
+    try {
+      const result = await window.AppleID.auth.signIn();
+      const n = result.user?.name;
+      const fullName = n ? [n.firstName, n.lastName].filter(Boolean).join(' ') : undefined;
+      const res = await api.post('/auth/apple', { identityToken: result.authorization.id_token, fullName: fullName || undefined });
+      const { token, user } = res.data as { token: string; user: AuthUser };
+      setAuth(token, user);
+      router.push(next);
+    } catch (err: unknown) {
+      const code = (err as { error?: string })?.error;
+      // The user closing Apple's popup is not an error worth showing.
+      if (code === 'popup_closed_by_user' || code === 'user_cancelled_authorize') { setLoading(null); return; }
+      setError(serverError(err) || 'Apple could not sign you in. Try again, or use Google or email.');
+      setLoading(null);
+    }
+  }
+
+  const dark = theme !== 'light';
+  const apple = { bg: dark ? '#fff' : '#000', fg: dark ? '#000' : '#fff', border: dark ? '#fff' : '#000' };
+  const fieldBorder = error ? '#F87171' : 'var(--pa-border)';
+  const busy = loading !== null;
+  const fieldStyle = { height: 48, padding: '0 14px', borderRadius: 12, border: `1px solid ${fieldBorder}`, background: 'var(--pa-card)', color: 'var(--pa-text)', fontSize: 15.5, width: '100%', minWidth: 0 } as const;
+  const ssoStyle = { height: 50, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, borderRadius: 12, fontWeight: 600, fontSize: 15.5, cursor: busy ? 'default' : 'pointer', fontFamily: 'var(--font-body)', textDecoration: 'none', opacity: busy ? 0.8 : 1 } as const;
+
   return (
-    <div
-      style={{ backgroundColor: 'var(--bg)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}
-    >
-      <div style={{ width: '100%', maxWidth: '420px' }}>
-        {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-            <div style={{
-              width: '40px', height: '40px', borderRadius: '10px',
-              background: 'linear-gradient(135deg, #4f8ef7 0%, #7c5cfc 100%)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '20px'
-            }}>α</div>
-            <span style={{ fontSize: '24px', fontWeight: 700, color: 'var(--text)' }}>PropAlpha</span>
-          </div>
-          <p style={{ color: 'var(--muted)', fontSize: '14px', marginTop: '4px' }}>
-            Singapore Property Intelligence
-          </p>
-        </div>
-
-        {/* Card */}
-        <div style={{
-          backgroundColor: 'var(--surface)',
-          border: '1px solid var(--border)',
-          borderRadius: '16px',
-          padding: '32px',
-        }}>
-          <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text)', marginBottom: '8px' }}>
-            Sign in to your account
-          </h1>
-          <p style={{ color: 'var(--muted)', fontSize: '14px', marginBottom: '28px' }}>
-            Access your PropAlpha dashboard
-          </p>
-
-          {error && (
-            <div style={{
-              backgroundColor: 'rgba(239,68,68,0.1)',
-              border: '1px solid rgba(239,68,68,0.3)',
-              borderRadius: '8px',
-              padding: '10px 14px',
-              color: '#f87171',
-              fontSize: '13px',
-              marginBottom: '16px',
-            }}>
-              {error}
+    <div className="pa-page" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px var(--pa-pad)', gap: 12 }}>
+        <Wordmark />
+        <ThemeToggle size={36} />
+      </div>
+      <main style={{ flex: 1, display: 'grid', placeItems: 'center', padding: '24px var(--pa-pad) 64px' }}>
+        <div style={{ width: 'min(420px,100%)', display: 'flex', flexDirection: 'column', gap: 22 }}>
+          {signedOutElsewhere && (
+            <div role="status" style={{ display: 'flex', gap: 12, padding: '14px 16px', borderRadius: 12, border: '1px solid color-mix(in srgb, var(--pa-amber) 50%, transparent)', background: 'color-mix(in srgb, var(--pa-amber) 12%, transparent)', fontSize: 14, color: 'var(--pa-text)' }}>
+              <span style={{ color: 'var(--pa-amber)', fontWeight: 800 }}>!</span>
+              <span>You have been signed out on another device. The free plan allows one active session. Sign in again to continue here.</span>
             </div>
           )}
 
-          {/* Google SSO — server-side redirect flow */}
-          <a
-            href={`${BACKEND_URL}/auth/google-web`}
-            style={{
-              width: '100%',
-              padding: '11px 16px',
-              borderRadius: '10px',
-              border: '1px solid var(--border)',
-              backgroundColor: 'var(--surface2)',
-              color: 'var(--text)',
-              fontSize: '14px',
-              fontWeight: 500,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              marginBottom: '20px',
-              textDecoration: 'none',
-              transition: 'opacity 0.2s',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.opacity = '0.8')}
-            onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
-          >
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-              <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908C16.658 14.13 17.64 11.87 17.64 9.2z" fill="#4285F4"/>
-              <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="#34A853"/>
-              <path d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
-              <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
-            </svg>
-            Continue with Google
-          </a>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-            <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border)' }} />
-            <span style={{ color: 'var(--muted)', fontSize: '12px' }}>or continue with email</span>
-            <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border)' }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <h1 style={{ fontSize: 32 }}>Sign in to PropAlpha</h1>
+            <p style={{ fontSize: 15, color: 'var(--pa-text-2)' }}>Same account as the app.</p>
           </div>
 
-          <form onSubmit={handleSubmit}>
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', color: 'var(--muted)', fontSize: '13px', marginBottom: '6px', fontWeight: 500 }}>
-                Email address
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                placeholder="agent@propco.com.sg"
-                style={{
-                  width: '100%',
-                  padding: '11px 14px',
-                  borderRadius: '10px',
-                  border: '1px solid var(--border)',
-                  backgroundColor: 'var(--surface2)',
-                  color: 'var(--text)',
-                  fontSize: '14px',
-                  outline: 'none',
-                }}
-              />
-            </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <a
+              className="pa-btn"
+              href={`${BACKEND_URL}/auth/google-web`}
+              aria-disabled={busy || undefined}
+              onClick={(e) => { if (busy) e.preventDefault(); }}
+              style={{ ...ssoStyle, border: '1px solid #DADCE0', background: '#fff', color: '#1F1F1F' }}
+            >
+              <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.5l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.3l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z" /><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.6 5.9c4.4-4.1 7-10.1 7-17.6z" /><path fill="#FBBC05" d="M10.5 28.6A14.5 14.5 0 0 1 9.7 24c0-1.6.3-3.1.8-4.6l-7.9-6.1A24 24 0 0 0 0 24c0 3.9.9 7.5 2.6 10.7l7.9-6.1z" /><path fill="#34A853" d="M24 48c6.3 0 11.7-2.1 15.5-5.7l-7.6-5.9c-2.1 1.4-4.8 2.3-7.9 2.3-6.3 0-11.6-4.1-13.5-9.9l-7.9 6.1C6.5 42.6 14.6 48 24 48z" /></svg>
+              Continue with Google
+            </a>
+            <button
+              type="button"
+              className="pa-btn"
+              onClick={handleApple}
+              disabled={busy}
+              style={{ ...ssoStyle, border: `1px solid ${apple.border}`, background: apple.bg, color: apple.fg }}
+            >
+              {loading === 'apple' ? (
+                <span aria-hidden="true" className="pa-spin" style={{ width: 16, height: 16, borderRadius: '50%', border: `2px solid ${dark ? 'rgba(0,0,0,.25)' : 'rgba(255,255,255,.35)'}`, borderTopColor: apple.fg, display: 'inline-block' }} />
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.4 12.6c0-2.5 2-3.7 2.1-3.7-1.2-1.7-3-1.9-3.6-2-1.5-.2-3 .9-3.7.9-.8 0-2-.9-3.3-.9-1.7 0-3.2 1-4.1 2.5-1.8 3-.5 7.6 1.3 10.1.8 1.2 1.8 2.6 3.1 2.5 1.3 0 1.7-.8 3.3-.8s2 .8 3.3.8c1.4 0 2.2-1.2 3.1-2.5.9-1.4 1.3-2.7 1.4-2.8-.1 0-2.9-1.1-2.9-4.1ZM14 5.3c.7-.8 1.2-2 1-3.1-1 0-2.2.7-2.9 1.5-.6.7-1.2 1.9-1.1 3 1.1.1 2.3-.6 3-1.4Z" /></svg>
+              )}
+              {loading === 'apple' ? 'Signing in…' : 'Continue with Apple'}
+            </button>
+          </div>
 
-            <div style={{ marginBottom: '24px' }}>
-              <label style={{ display: 'block', color: 'var(--muted)', fontSize: '13px', marginBottom: '6px', fontWeight: 500 }}>
-                Password
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                placeholder="••••••••"
-                style={{
-                  width: '100%',
-                  padding: '11px 14px',
-                  borderRadius: '10px',
-                  border: '1px solid var(--border)',
-                  backgroundColor: 'var(--surface2)',
-                  color: 'var(--text)',
-                  fontSize: '14px',
-                  outline: 'none',
-                }}
-              />
-            </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 12.5, color: 'var(--pa-text-3)' }}>
+            <span style={{ flex: 1, height: 1, background: 'var(--pa-border)' }} />
+            or continue with email
+            <span style={{ flex: 1, height: 1, background: 'var(--pa-border)' }} />
+          </div>
 
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13, color: 'var(--pa-text-2)' }}>
+              Email
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" placeholder="you@agency.sg" aria-invalid={!!error || undefined} style={fieldStyle} />
+            </label>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13, color: 'var(--pa-text-2)' }}>
+              Password
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" placeholder="••••••••" aria-invalid={!!error || undefined} style={fieldStyle} />
+            </label>
             {error && (
-              <div style={{
-                backgroundColor: 'rgba(239,68,68,0.1)',
-                border: '1px solid rgba(239,68,68,0.3)',
-                borderRadius: '8px',
-                padding: '10px 14px',
-                color: '#f87171',
-                fontSize: '13px',
-                marginBottom: '16px',
-              }}>
-                {error}
-              </div>
+              <p role="alert" style={{ fontSize: 13.5, color: '#F87171', display: 'flex', gap: 8 }}>
+                <span style={{ fontWeight: 800 }}>×</span>
+                <span>{error}</span>
+              </p>
             )}
-
             <button
               type="submit"
-              disabled={loading}
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                borderRadius: '10px',
-                border: 'none',
-                backgroundColor: loading ? 'var(--border)' : 'var(--accent)',
-                color: '#fff',
-                fontSize: '15px',
-                fontWeight: 600,
-                cursor: loading ? 'not-allowed' : 'pointer',
-                transition: 'opacity 0.2s',
-              }}
+              className="pa-btn"
+              disabled={busy}
+              style={{ height: 50, borderRadius: 12, border: 0, background: 'var(--pa-primary)', color: '#fff', fontWeight: 700, fontSize: 15.5, cursor: busy ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, opacity: loading === 'email' ? 0.8 : 1 }}
             >
-              {loading ? 'Signing in…' : 'Sign in'}
+              {loading === 'email' && <Spinner light />}
+              {loading === 'email' ? 'Signing in…' : 'Sign in'}
             </button>
           </form>
-        </div>
 
-        <p style={{ textAlign: 'center', marginTop: '24px', color: 'var(--muted)', fontSize: '13px' }}>
-          <Link href="/" style={{ color: 'var(--accent)', textDecoration: 'none' }}>
-            ← Back to PropAlpha.tech
-          </Link>
-        </p>
-      </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', fontSize: 14 }}>
+            <Link className="pa-link" href="/download">New to PropAlpha? Get the app</Link>
+            <a className="pa-link" href="mailto:contact@luminaireproptech.com.sg?subject=PropAlpha%20password%20reset">Forgot password</a>
+          </div>
+          <p style={{ fontSize: 13, color: 'var(--pa-text-3)', textAlign: 'center' }}>Market data is free. Agent tools are activated by Luminaire Proptech.</p>
+        </div>
+      </main>
     </div>
   );
 }
